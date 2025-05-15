@@ -1,0 +1,49 @@
+"La Défense" 162 448
+"Charles de Gaulle Étoile" 392 678
+"Franklin D. Roosevelt" 494 778
+"Concorde" 558 842
+"Palais Royal Musée du Louvre" 708 868
+"Châtelet" 894 870
+"Hôtel de Ville" 966 870
+"Bastille" 1102 948
+"Gare de Lyon" 1156 1078
+"Reuilly-Diderot" 1258 1052
+"Nation" 1364 992
+"Châteu de Vincennes" 1540 1096
+"Porte Dauphine" 252 690
+"Barbès Rochechouart" 974 466
+"Stalingrad" 1162 474
+"Jaurès" 1202 502
+"Belleville" 1210 624
+"Porte de Clignancourt" 874 310
+"Gare de I'Est" 1062 570
+"Strasbourg Saint-Denis" 996 694
+"Montparnasse Bienvenue" 732 1182
+"Raspail" 832 1208
+"Denfert Rochereau" 858 1242
+"Porte d'Orléans" 804 1380
+"Bobigny Pablo Picasso" 1536 334
+"Gare du Nord" 1060 500
+"République" 1114 720
+"Oberkampf" 1148 754
+"Place d'Italie" 1038 1298
+"Trocadéro" 284 868
+"La Motte Picquet Grenelle" 444 1096
+"Bercy" 1266 1214
+"Daumesnil" 1344 1136
+"La Courneuve 8 Mai 1945" 1344 202
+"Chaussée d'Antin La Fayette" 750 688
+"Opéra" 708 724
+"Pyramides" 708 794
+"Maison Blanche" 1028 1368
+"Villejuif - Louis Aragon" 1028 1524
+"Mairie d'Ivry" 1260 1448
+"Balard" 342 1344
+"Madeleine" 568 784
+"Richelieu Drouot" 800 692
+"Créteil - Préfecture" 1498 1522
+"Pont de Sèvres" 112 1380
+"Mairie de Montreuil" 1540 836
+"Mairie des Lilas" 1540 542
+"Saint-Lazare" 632 628
+"Olympiades" 1170 1344

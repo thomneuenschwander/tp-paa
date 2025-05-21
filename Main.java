@@ -1,7 +1,7 @@
 import javax.swing.*;
 import javax.swing.filechooser.FileFilter;
 import java.awt.*;
-import java.awt.event.ActionListener;
+import java.awt.BorderLayout;
 import java.io.*;
 import java.util.*;
 import java.util.List;
@@ -15,10 +15,64 @@ public class Main {
     }
 }
 
+class MaxCircule {
+    static int max;
+    static Set<Integer> P;
+    static int s;
+
+    static int bruteForceApproach(AdjacencyList<Integer> G, int root) {
+        s = root;
+        max = 0;
+        P = new HashSet<>();
+        P.add(root);
+        bruteForce(G, root);
+        return max;
+    }
+
+    private static void bruteForce(AdjacencyList<Integer> G, int v) {
+        for (int u : G.neighbors(v)) {
+            if (u == s && P.size() >= 3 && P.size() > max)
+                max = P.size();
+
+            if (!P.contains(u)) {
+                P.add(u);
+                bruteForce(G, u);
+                P.remove(u);
+            }
+        }
+    }
+}
+
+class AdjacencyList<T> {
+    private final Map<T, Set<T>> adj = new HashMap<>();
+
+    public Set<T> neighbors(T v) {
+        return adj.getOrDefault(v, Collections.emptySet());
+    }
+
+    public Set<T> V() {
+        return adj.keySet();
+    }
+
+    public boolean addEdge(T v, T u) {
+        if (!adj.containsKey(v))
+            adj.put(v, new HashSet<>());
+        if (!adj.containsKey(u))
+            adj.put(u, new HashSet<>());
+        var a = adj.get(v).add(u);
+        var b = adj.get(u).add(v);
+        return a || b;
+    }
+
+    public int degree(T v) {
+        return neighbors(v).size();
+    }
+}
+
 record Cordinates(int x, int y) {
 }
 
-record Station(String name, Cordinates position) {
+record Station(int id, String name, Cordinates position) {
     static Optional<Station> findByName(List<Station> stations, String name) {
         return stations.stream().filter(s -> s.name.equals(name)).findFirst();
     }
@@ -48,22 +102,25 @@ class GUI extends JFrame {
             Map.entry("rosa-choque", new Color(255, 20, 147)),
             Map.entry("verde-musgo", new Color(85, 107, 47)));
 
+    JPanel mainPanel;
+
     List<Station> stations = new ArrayList<>();
     List<Line> lines = new ArrayList<>();
-    GraphPanel graphPanel;
 
     GUI() {
-        setTitle("Passe de Metrô de Paris - Solver");
+        setTitle("Passe de Metro de Paris - Solver");
         setSize(FRAME_WIDTH, FRAME_HEIGHT);
-        setLocationRelativeTo(null);
         setDefaultCloseOperation(EXIT_ON_CLOSE);
         setLayout(new BorderLayout());
+
+        mainPanel = new JPanel(new BorderLayout());
+        add(mainPanel, BorderLayout.CENTER);
 
         JMenuBar menuBar = new JMenuBar();
 
         JMenu fMenu = new JMenu("Ler Arquivos");
-        JMenuItem fopenStations = new JMenuItem("Ler Estações do Metrô");
-        JMenuItem fopenLines = new JMenuItem("Ler Linhas do Metrô");
+        JMenuItem fopenStations = new JMenuItem("Ler Estações do Metro");
+        JMenuItem fopenLines = new JMenuItem("Ler Linhas do Metro");
         JMenuItem exit = new JMenuItem("Sair");
 
         fMenu.add(fopenStations);
@@ -112,41 +169,164 @@ class GUI extends JFrame {
                 lines = readLineFile(chooser.getSelectedFile().getAbsolutePath());
                 JOptionPane.showMessageDialog(this, lines.size() + " linhas carregadas");
 
-                if (this.graphPanel != null)
-                    remove(this.graphPanel);
+                GraphPanel graphPanel = new GraphPanel(stations, lines);
+                JScrollPane graphPanelScroll = new JScrollPane(graphPanel);
+                graphPanelScroll.getVerticalScrollBar().setUnitIncrement(16);
 
-                this.graphPanel = new GraphPanel(stations, lines);
-                JScrollPane scrollPane = new JScrollPane(this.graphPanel);
-                scrollPane.getVerticalScrollBar().setUnitIncrement(16);
-                add(scrollPane, BorderLayout.CENTER);
-
-                revalidate();
-                repaint();
+                mainPanel.removeAll();
+                mainPanel.add(graphPanelScroll, BorderLayout.CENTER);
+                mainPanel.revalidate();
+                mainPanel.repaint();
             }
         });
 
         exit.addActionListener(e -> System.exit(0));
 
-        ActionListener problemaHandler = evt -> {
-            if (stations.isEmpty() || lines.isEmpty()) {
-                JOptionPane.showMessageDialog(this, "É preciso carregar as entradas de estações e de linhas do metro.", "Nenhum input foi foi fornecido ainda",
-                        JOptionPane.ERROR_MESSAGE);
-                return;
-            }
+        p1BF.addActionListener(e -> new ProblemSolverDialog(this, 1, ((JMenuItem) e.getSource()).getText()));
+        p1BnB.addActionListener(e -> new ProblemSolverDialog(this, 1, ((JMenuItem) e.getSource()).getText()));
+        p1Heur.addActionListener(e -> new ProblemSolverDialog(this, 1, ((JMenuItem) e.getSource()).getText()));
 
-        };
-
-        p1BF.addActionListener(problemaHandler);
-        p1BnB.addActionListener(problemaHandler);
-        p1Heur.addActionListener(problemaHandler);
-        p2Brute.addActionListener(problemaHandler);
-        p2BnB.addActionListener(problemaHandler);
-        p2Heur.addActionListener(problemaHandler);
+        p2Brute.addActionListener(e -> new ProblemSolverDialog(this, 2, ((JMenuItem) e.getSource()).getText()));
+        p2BnB.addActionListener(e -> new ProblemSolverDialog(this, 2, ((JMenuItem) e.getSource()).getText()));
+        p2Heur.addActionListener(e -> new ProblemSolverDialog(this, 2, ((JMenuItem) e.getSource()).getText()));
 
         setVisible(true);
     }
 
+    class ProblemSolverDialog extends JDialog {
+        static final int DIALOG_INIT_WIDTH = 480;
+        static final int DIALOG_INIT_HEIGHT = 360;
+
+        ProblemSolverDialog(JFrame owner, int problem, String approach) {
+            super(owner, "Problema " + Integer.toString(problem), false);
+            setLayout(new BorderLayout());
+            setSize(DIALOG_INIT_WIDTH, DIALOG_INIT_HEIGHT);
+            setLocationRelativeTo(owner);
+
+            JPanel content = new JPanel();
+            content.setLayout(new BoxLayout(content, BoxLayout.Y_AXIS));
+            content.setBorder(BorderFactory.createEmptyBorder(15, 20, 15, 20));
+
+            JLabel title = new JLabel("Técnica de Projeto escolhida: " + approach);
+            title.setAlignmentX(Component.LEFT_ALIGNMENT);
+            content.add(title);
+
+            content.add(Box.createVerticalStrut(10));
+
+            String context;
+            String goal;
+            switch (problem) {
+                case 1 -> {
+                    context = "Determinar o número máximo de estações que um turista poderá visitar com um só passe, saindo e retornando de uma determinada estação.";
+                    goal = "Encontrar o conjunto de vértices de maior cardinalidade que formam um caminho fechado no grafo partindo de um determinado vértice raiz.";
+                }
+                case 2 -> {
+                    context = "Determinar as estações para instalação de guichês para venda de passes, de modo que um turista não precise caminhar mais que uma estação para encontrar um guichê. Devem ser determinados o número mínimo de guichês a serem instalados e as estações que devem recebe-los.";
+                    goal = "Encontrar o minimum vertex cover set do grafo e sua respectiva cardinalidade.";
+                }
+                default -> {
+                    context = "Error";
+                    goal = "Error";
+                }
+            }
+
+            JLabel contextLabel = new JLabel("Contextualização:");
+            contextLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
+            content.add(contextLabel);
+            JTextArea contextArea = new JTextArea(context);
+            contextArea.setAlignmentX(Component.LEFT_ALIGNMENT);
+            contextArea.setLineWrap(true);
+            contextArea.setWrapStyleWord(true);
+            contextArea.setEditable(false);
+            contextArea.setOpaque(false);
+            content.add(contextArea);
+            content.add(Box.createVerticalStrut(10));
+            JLabel goalLabel = new JLabel("Objetivo:");
+            goalLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
+            content.add(goalLabel);
+
+            JTextArea goalArea = new JTextArea(goal);
+            goalArea.setAlignmentX(Component.LEFT_ALIGNMENT);
+            goalArea.setLineWrap(true);
+            goalArea.setWrapStyleWord(true);
+            goalArea.setEditable(false);
+            goalArea.setOpaque(false);
+            content.add(goalArea);
+
+            content.add(Box.createVerticalStrut(10));
+            JLabel stationLabel = new JLabel("Digite o nome da estação raiz:");
+            content.add(Box.createVerticalStrut(10));
+
+            JTextField stationInput = new JTextField();
+
+            stationInput.setMaximumSize(new Dimension(Integer.MAX_VALUE, 30));
+            content.add(Box.createVerticalStrut(10));
+
+            if (problem == 1) {
+                content.add(stationLabel);
+                content.add(stationInput);
+            }
+
+            JButton runButton = new JButton("Executar");
+            content.add(runButton);
+
+            add(content, BorderLayout.CENTER);
+
+            runButton.addActionListener(e -> {
+                String name = stationInput.getText().trim();
+                Optional<Station> station = Station.findByName(stations, name);
+
+                if (stations.isEmpty() || lines.isEmpty()) {
+                    JOptionPane.showMessageDialog(this,
+                            "É preciso carregar as entradas de estações e de linhas do metro.",
+                            "Nenhum input foi foi fornecido ainda", JOptionPane.ERROR_MESSAGE);
+                    return;
+                }
+
+                int id = station.get().id();
+                AdjacencyList<Integer> graph = generateSimpleAdjacencyList();
+
+                SwingWorker<Integer, Void> worker = new SwingWorker<>() {
+                    @Override
+                    protected Integer doInBackground() {
+                        return switch (approach) {
+                            case "Força Bruta" -> MaxCircule.bruteForceApproach(graph, id);
+                            default -> throw new IllegalStateException("\"" + approach + "\"" + " não suportada.");
+                        };
+                    }
+
+                    @Override
+                    protected void done() {
+                        try {
+                            int res = get();
+                            JOptionPane.showMessageDialog(ProblemSolverDialog.this,
+                                    "O caminho fechado de maior cardinalidade possuí " + res + " vértices.");
+                        } catch (Exception ex) {
+                            JOptionPane.showMessageDialog(ProblemSolverDialog.this,
+                                    "Erro na execução: " + ex.getMessage(),
+                                    "Erro", JOptionPane.ERROR_MESSAGE);
+                        }
+                    }
+                };
+
+                worker.execute();
+            });
+            setVisible(true);
+        }
+    }
+
+    AdjacencyList<Integer> generateSimpleAdjacencyList() {
+        AdjacencyList<Integer> G = new AdjacencyList<>();
+        lines.forEach(edge -> {
+            int v = Station.findByName(stations, edge.s1()).get().id();
+            int u = Station.findByName(stations, edge.s2()).get().id();
+            G.addEdge(v, u);
+        });
+        return G;
+    }
+
     List<Station> readStationFile(String filename) {
+        int id = 0;
         List<Station> stations = new LinkedList<>();
         try (BufferedReader br = new BufferedReader(new FileReader(filename))) {
             String line;
@@ -154,7 +334,7 @@ class GUI extends JFrame {
                 Matcher m = STATION_LINE_REGEX.matcher(line.trim());
                 if (!m.matches())
                     throw new IllegalStateException("Linha de estacoes de metro inválida -> " + line);
-                stations.add(new Station(m.group(1),
+                stations.add(new Station(id++, m.group(1),
                         new Cordinates(Integer.parseInt(m.group(2)), Integer.parseInt(m.group(3)))));
             }
         } catch (Exception e) {
@@ -208,11 +388,13 @@ class GUI extends JFrame {
 
     class GraphPanel extends JPanel {
         static final Dimension GRAPH_SIZE = new Dimension(1600, 1600);
+
         static final int NODE_DIAMETER = 12;
+        static final Function<Integer, Integer> CENTER_NODE_POS = pos -> pos - NODE_DIAMETER / 2;
         static final Color NODE_COLOR = Color.BLACK;
+
         static final int LABEL_PADDING = 4;
         static final BasicStroke EDGE_STROKE = new BasicStroke(4);
-        static final Function<Integer, Integer> CENTER_POS = pos -> pos - NODE_DIAMETER / 2;
 
         List<Station> stations;
         List<Line> lines;
@@ -246,8 +428,8 @@ class GUI extends JFrame {
 
         void paintNode(Graphics2D g, Station v) {
             g.setColor(Color.black);
-            int cx = CENTER_POS.apply(v.position().x());
-            int cy = CENTER_POS.apply(v.position().y());
+            int cx = CENTER_NODE_POS.apply(v.position().x());
+            int cy = CENTER_NODE_POS.apply(v.position().y());
             g.fillOval(cx, cy, NODE_DIAMETER, NODE_DIAMETER);
             paintNodeLabel(g, cx, cy, v.name());
         }

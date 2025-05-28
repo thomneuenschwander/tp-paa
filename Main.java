@@ -43,6 +43,54 @@ class MaxCircule {
     }
 }
 
+class MVC {
+    static int n;
+    
+    static List<Integer> bruteForceApproach(AdjacencyListMVC<Integer> G) {
+        n = G.V().size();
+        Set<Integer> vertexSet = G.V();
+        List<Integer> vertexList = new ArrayList<>(vertexSet); // Converte para Lista para acessar os índices
+        long totalSubsets = 1 << n; // 2^n subsets
+
+        List<Integer> MVC = new ArrayList<>();
+        int minSize = Integer.MAX_VALUE;
+        System.out.println("Tamanho do Grafo: " + n);
+        // Itera de 0 a 2^n - 1
+        for (long i = 0; i < totalSubsets; i++) {
+            Set<Integer> currSubset = new HashSet<>();
+            // Para cada número 'i', verifica cada bit para construir o subset
+            for (int j = 0; j < n; j++) {
+                // Se o j-ésimo bit de 'i' for 1, inclui o j-ésimo elemento do conjunto
+                if ((i & (1 << j)) > 0) {
+                    currSubset.add(vertexList.get(j));
+                }
+            }
+            // Verificar se o subset atual é vertex cover
+            if(currSubset.size() < minSize && isVertexCover(currSubset, G)){ // Otimização para não verificar subsets >= que o atual MVC
+                minSize = currSubset.size();
+                MVC = new ArrayList<>(currSubset);
+                System.out.println("Nova menor Cobertura de Vértices encontrada: " + MVC + " (Tamanho: " + minSize + ")");
+            }
+        }
+
+        return MVC;
+    }
+
+    public static boolean isVertexCover(Set<Integer> subset, AdjacencyListMVC<Integer> G) {
+        List<List<Integer>> edges = G.getEdges();
+
+        for(List<Integer> edge : edges){
+           int u = edge.get(0);
+           int v = edge.get(1);
+
+           if(!subset.contains(u) && !subset.contains(v)){
+                return false;
+           }
+        }
+        return true;
+    }
+}
+
 class AdjacencyList<T> {
     private final Map<T, Set<T>> adj = new HashMap<>();
 
@@ -66,6 +114,46 @@ class AdjacencyList<T> {
 
     public int degree(T v) {
         return neighbors(v).size();
+    }
+}
+
+class AdjacencyListMVC<T> {
+    private final Map<T, Set<T>> adj = new HashMap<>();
+    private List<List<T>> edges = new ArrayList<>();
+
+    public List<List<T>> getEdges(){  return edges; }
+
+    public Set<T> neighbors(T v) {
+        return adj.getOrDefault(v, Collections.emptySet());
+    }
+
+    public Set<T> V() {
+        return adj.keySet();
+    }
+
+    public boolean addEdge(T v, T u) {
+        if (!adj.containsKey(v))
+            adj.put(v, new HashSet<>());
+        if (!adj.containsKey(u))
+            adj.put(u, new HashSet<>());
+        var a = adj.get(v).add(u);
+        var b = adj.get(u).add(v);
+        edges.add(List.of(v, u));
+        return a || b;
+    }
+
+    public int degree(T v) {
+        return neighbors(v).size();
+    }
+
+    public void print() {
+        for (Map.Entry<T, Set<T>> entry : adj.entrySet()) {
+            System.out.print(entry.getKey() + ": ");
+            for (T neighbor : entry.getValue()) {
+                System.out.print(neighbor + " ");
+            }
+            System.out.println();
+        }
     }
 }
 
@@ -273,43 +361,76 @@ class GUI extends JFrame {
             add(content, BorderLayout.CENTER);
 
             runButton.addActionListener(e -> {
-                String name = stationInput.getText().trim();
-                Optional<Station> station = Station.findByName(stations, name);
-
                 if (stations.isEmpty() || lines.isEmpty()) {
                     JOptionPane.showMessageDialog(this,
                             "É preciso carregar as entradas de estações e de linhas do metro.",
-                            "Nenhum input foi foi fornecido ainda", JOptionPane.ERROR_MESSAGE);
+                            "Nenhum input foi fornecido ainda", JOptionPane.ERROR_MESSAGE);
                     return;
                 }
 
-                int id = station.get().id();
-                AdjacencyList<Integer> graph = generateSimpleAdjacencyList();
+                if (problem == 1) { // Lógica para o Problema 1
+                    String name = stationInput.getText().trim();
+                    Optional<Station> station = Station.findByName(stations, name);
 
-                SwingWorker<Integer, Void> worker = new SwingWorker<>() {
-                    @Override
-                    protected Integer doInBackground() {
-                        return switch (approach) {
-                            case "Força Bruta" -> MaxCircule.bruteForceApproach(graph, id);
-                            default -> throw new IllegalStateException("\"" + approach + "\"" + " não suportada.");
-                        };
+                    if (station.isEmpty()) {
+                        JOptionPane.showMessageDialog(this, "Estação \"" + name + "\" não encontrada.",
+                                "Estação Inválida", JOptionPane.ERROR_MESSAGE);
+                        return;
                     }
 
-                    @Override
-                    protected void done() {
-                        try {
-                            int res = get();
-                            JOptionPane.showMessageDialog(ProblemSolverDialog.this,
-                                    "O caminho fechado de maior cardinalidade possuí " + res + " vértices.");
-                        } catch (Exception ex) {
-                            JOptionPane.showMessageDialog(ProblemSolverDialog.this,
-                                    "Erro na execução: " + ex.getMessage(),
-                                    "Erro", JOptionPane.ERROR_MESSAGE);
+                    int id = station.get().id();
+                    AdjacencyList<Integer> graph = generateSimpleAdjacencyList();
+
+                    SwingWorker<Integer, Void> worker = new SwingWorker<>() {
+                        @Override
+                        protected Integer doInBackground() {
+                            return switch (approach) {
+                                case "Força Bruta" -> MaxCircule.bruteForceApproach(graph, id);
+                                default -> throw new IllegalStateException("\"" + approach + "\"" + " não suportada para o Problema 1.");
+                            };
                         }
-                    }
-                };
 
-                worker.execute();
+                        @Override
+                        protected void done() {
+                            try {
+                                int res = get();
+                                JOptionPane.showMessageDialog(ProblemSolverDialog.this,
+                                        "O caminho fechado de maior cardinalidade possuí " + res + " vértices.");
+                            } catch (Exception ex) {
+                                JOptionPane.showMessageDialog(ProblemSolverDialog.this,
+                                        "Erro na execução: " + ex.getMessage(),
+                                        "Erro", JOptionPane.ERROR_MESSAGE);
+                            }
+                        }
+                    };
+                    worker.execute();
+                } else if (problem == 2) { // Lógica para o Problema 2
+                    AdjacencyListMVC<Integer> graphMVC = generateSimpleAdjacencyListMVC();
+                    graphMVC.print();
+                    SwingWorker<List<Integer>, Void> worker = new SwingWorker<>() { 
+                        @Override
+                        protected List<Integer> doInBackground() {
+                            return switch (approach) {
+                                case "Força Bruta" -> MVC.bruteForceApproach(graphMVC);
+                                default -> throw new IllegalStateException("\"" + approach + "\"" + " não suportada para o Problema 2.");
+                            };
+                        }
+
+                        @Override
+                         protected void done() {
+                            try {
+                                List<Integer> res = get();
+                                JOptionPane.showMessageDialog(ProblemSolverDialog.this,
+                                        "O MVC possui " + res.size() + " vértices.");
+                            } catch (Exception ex) {
+                                JOptionPane.showMessageDialog(ProblemSolverDialog.this,
+                                        "Erro na execução: " + ex.getMessage(),
+                                        "Erro", JOptionPane.ERROR_MESSAGE);
+                            }
+                        }
+                    };
+                    worker.execute();
+                }
             });
             setVisible(true);
         }
@@ -317,6 +438,16 @@ class GUI extends JFrame {
 
     AdjacencyList<Integer> generateSimpleAdjacencyList() {
         AdjacencyList<Integer> G = new AdjacencyList<>();
+        lines.forEach(edge -> {
+            int v = Station.findByName(stations, edge.s1()).get().id();
+            int u = Station.findByName(stations, edge.s2()).get().id();
+            G.addEdge(v, u);
+        });
+        return G;
+    }
+
+    AdjacencyListMVC<Integer> generateSimpleAdjacencyListMVC() {
+        AdjacencyListMVC<Integer> G = new AdjacencyListMVC<>();
         lines.forEach(edge -> {
             int v = Station.findByName(stations, edge.s1()).get().id();
             int u = Station.findByName(stations, edge.s2()).get().id();

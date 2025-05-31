@@ -53,6 +53,38 @@ class MaxCycle {
         }
     }
 
+     public List<Integer> branchAndBoundApproach(int root) {
+        this.max = 0;
+        this.path.clear();
+
+        Set<Integer> P = new LinkedHashSet<>();
+        P.add(root);
+        branchAndBound(P, root, root);
+
+        return path;
+    }
+
+    private void branchAndBound(Set<Integer> P, int root, int v) {
+        for (int u : G.neighbors(v)) {
+            if (u == root && P.size() >= 3 && P.size() > max) {
+                max = P.size();
+                path.clear();
+                path.addAll(P);
+                path.add(root);
+                continue;
+            }
+            if (!P.contains(u)) {
+                int upperbound = G.V().size();
+                if(upperbound>max && G.degree(u)>1){
+                    P.add(u);
+                    branchAndBound(P, root, u);
+                    P.remove(u);
+
+                }
+            }
+        }
+    }
+
     public List<Integer> parcialGreedyHeuristicApproach(int root) {
         this.max = 0;
         this.path.clear();
@@ -515,6 +547,7 @@ class GUI extends JFrame {
                         protected List<Integer> doInBackground() {
                             return switch (approach) {
                                 case "Força Bruta" -> maxCycle.bruteForceApproach(id);
+                                case "Branch and Bound"->maxCycle.branchAndBoundApproach(id);
                                 case "Heurístico Guloso" -> maxCycle.parcialGreedyHeuristicApproach(id);
                                 case "Heurístico Estocástico" -> maxCycle.randomizedHeuristicApproach(id);
                                 default -> throw new IllegalStateException("\"" + approach + "\"" + " não suportada.");

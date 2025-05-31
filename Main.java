@@ -17,30 +17,32 @@ public class Main {
 
 class MaxCycle {
     private int max;
-    private Set<Integer> maxCycle;
+    private List<Integer> path;
     private AdjacencyList<Integer> G;
 
     public MaxCycle(AdjacencyList<Integer> G) {
         this.G = G;
+        this.path = new ArrayList<>();
     }
 
-    public int bruteForceApproach(int root) {
-        max = 0;
-        maxCycle = new HashSet<>();
+    public List<Integer> bruteForceApproach(int root) {
+        this.max = 0;
+        this.path.clear();
 
-        Set<Integer> P = new HashSet<>();
+        Set<Integer> P = new LinkedHashSet<>();
         P.add(root);
         bruteForce(P, root, root);
-        P.forEach(System.out::println);
-        return max;
+
+        return path;
     }
 
     private void bruteForce(Set<Integer> P, int root, int v) {
         for (int u : G.neighbors(v)) {
             if (u == root && P.size() >= 3 && P.size() > max) {
                 max = P.size();
-                maxCycle.clear();
-                maxCycle.addAll(P);
+                path.clear();
+                path.addAll(P);
+                path.add(root);
                 continue;
             }
             if (!P.contains(u)) {
@@ -51,19 +53,131 @@ class MaxCycle {
         }
     }
 
+    public List<Integer> parcialGreedyHeuristicApproach(int root) {
+        this.max = 0;
+        this.path.clear();
+
+        if (isRootInvalid(root))
+            return path;
+
+        boolean usedBackup = false;
+        int backupVertex = root;
+
+        Set<Integer> P = new LinkedHashSet<>();
+
+        int v = root;
+        P.add(v);
+        path.add(v);
+
+        List<Integer> vOptions = new ArrayList<>();
+        while (true) {
+            vOptions.clear();
+
+            for (int u : G.neighbors(v)) {
+                if (u == root && path.size() >= 3) {
+                    max = path.size();
+                    path.add(u);
+                    return path;
+                } else if (!P.contains(u) && G.degree(u) > 1)
+                    vOptions.add(u);
+            }
+
+            if (vOptions.isEmpty()) {
+                if (usedBackup)
+                    break;
+                else {
+                    usedBackup = true;
+                    int backupIdx = path.indexOf(backupVertex);
+                    if (backupIdx != -1) {
+                        List<Integer> temp = new ArrayList<>(path.subList(0, backupIdx + 1));
+                        path.clear();
+                        path.addAll(temp);
+                        v = backupVertex;
+                        continue;
+                    } else
+                        break;
+                }
+            }
+            if (!usedBackup && G.degree(v) > G.degree(backupVertex))
+                backupVertex = v;
+
+            int u = vOptions.stream().max(Comparator.comparingInt(G::degree)).orElseThrow();
+            P.add(u);
+            path.add(u);
+            v = u;
+        }
+
+        return Collections.emptyList();
+    }
+
+    public List<Integer> randomizedHeuristicApproach(int root) {
+        this.max = 0;
+        this.path.clear();
+
+        final int K = G.V().size() / 2;
+
+        if (isRootInvalid(root))
+            return this.path;
+
+        Random randomGenerator = new Random();
+
+        for (int i = 1; i <= K; i++) {
+            Set<Integer> P = new LinkedHashSet<>();
+
+            int v = root;
+            P.add(v);
+
+            boolean foundCycle = false;
+
+            while (true) {
+                List<Integer> vOptions = new ArrayList<>();
+                for (int u : G.neighbors(v)) {
+                    if (u == root && P.size() >= 3) {
+                        if (P.size() > this.max) {
+                            this.max = P.size();
+                            this.path.clear();
+                            this.path.addAll(P);
+                            this.path.add(root);
+                        }
+                        foundCycle = true;
+                        break;
+                    } else if (!P.contains(u) && G.degree(u) > 1) {
+                        vOptions.add(u);
+                    }
+                }
+                if (foundCycle || vOptions.isEmpty())
+                    break;
+
+                int randomIndex = randomGenerator.nextInt(vOptions.size());
+                int u = vOptions.get(randomIndex);
+
+                P.add(u);
+                v = u;
+            }
+        }
+        return this.path;
+    }
+
+    private boolean isRootInvalid(int root) {
+        if (!G.V().contains(root) || G.degree(root) <= 1)
+            return true;
+        long count = G.neighbors(root).stream().filter(neighbor -> G.degree(neighbor) > 2).count();
+        return count < 2;
+    }
+
     public int getMax() {
         return max;
     }
 
-    public Set<Integer> getMaxCyclePath() {
-        return maxCycle;
+    public List<Integer> getMaxCyclePath() {
+        return path;
     }
 }
 
 class MVC {
     static int n;
-    
-    static List<Integer> bruteForceApproach(AdjacencyListMVC<Integer> G) {
+
+    static List<Integer> bruteForceApproach(AdjacencyList<Integer> G) {
         n = G.V().size();
         Set<Integer> vertexSet = G.V();
         List<Integer> vertexList = new ArrayList<>(vertexSet); // Converte para Lista para acessar os índices
@@ -83,33 +197,48 @@ class MVC {
                 }
             }
             // Verificar se o subset atual é vertex cover
-            if(currSubset.size() < minSize && isVertexCover(currSubset, G)){ // Otimização para não verificar subsets >= que o atual MVC
+            if (currSubset.size() < minSize && isVertexCover(currSubset, G)) { // Otimização para não verificar subsets
+                                                                               // >= que o atual MVC
                 minSize = currSubset.size();
                 MVC = new ArrayList<>(currSubset);
-                System.out.println("Nova menor Cobertura de Vértices encontrada: " + MVC + " (Tamanho: " + minSize + ")");
+                System.out
+                        .println("Nova menor Cobertura de Vértices encontrada: " + MVC + " (Tamanho: " + minSize + ")");
             }
         }
 
         return MVC;
     }
 
-    public static boolean isVertexCover(Set<Integer> subset, AdjacencyListMVC<Integer> G) {
+    public static boolean isVertexCover(Set<Integer> subset, AdjacencyList<Integer> G) {
         List<List<Integer>> edges = G.getEdges();
 
-        for(List<Integer> edge : edges){
-           int u = edge.get(0);
-           int v = edge.get(1);
+        for (List<Integer> edge : edges) {
+            int u = edge.get(0);
+            int v = edge.get(1);
 
-           if(!subset.contains(u) && !subset.contains(v)){
+            if (!subset.contains(u) && !subset.contains(v)) {
                 return false;
-           }
+            }
         }
         return true;
     }
 }
 
 class AdjacencyList<T> {
-    private final Map<T, Set<T>> adj = new HashMap<>();
+    private final Map<T, Set<T>> adj;
+    private boolean useEdgeList;
+    private List<List<T>> edges;
+
+    public AdjacencyList() {
+        this.adj = new HashMap<>();
+        this.useEdgeList = false;
+    }
+
+    public AdjacencyList(boolean useEdgeList) {
+        this.useEdgeList = useEdgeList;
+        this.adj = new HashMap<>();
+        this.edges = new ArrayList<>();
+    }
 
     public Set<T> neighbors(T v) {
         return adj.getOrDefault(v, Collections.emptySet());
@@ -126,41 +255,19 @@ class AdjacencyList<T> {
             adj.put(u, new HashSet<>());
         var a = adj.get(v).add(u);
         var b = adj.get(u).add(v);
+        if (useEdgeList)
+            edges.add(List.of(v, u));
         return a || b;
     }
 
     public int degree(T v) {
         return neighbors(v).size();
     }
-}
 
-class AdjacencyListMVC<T> {
-    private final Map<T, Set<T>> adj = new HashMap<>();
-    private List<List<T>> edges = new ArrayList<>();
-
-    public List<List<T>> getEdges(){  return edges; }
-
-    public Set<T> neighbors(T v) {
-        return adj.getOrDefault(v, Collections.emptySet());
-    }
-
-    public Set<T> V() {
-        return adj.keySet();
-    }
-
-    public boolean addEdge(T v, T u) {
-        if (!adj.containsKey(v))
-            adj.put(v, new HashSet<>());
-        if (!adj.containsKey(u))
-            adj.put(u, new HashSet<>());
-        var a = adj.get(v).add(u);
-        var b = adj.get(u).add(v);
-        edges.add(List.of(v, u));
-        return a || b;
-    }
-
-    public int degree(T v) {
-        return neighbors(v).size();
+    public List<List<T>> getEdges() {
+        if (useEdgeList)
+            return edges;
+        throw new UnsupportedOperationException();
     }
 
     public void print() {
@@ -237,17 +344,19 @@ class GUI extends JFrame {
         JMenu p1Menu = new JMenu("Problema 1");
         JMenuItem p1BF = new JMenuItem("Força Bruta");
         JMenuItem p1BnB = new JMenuItem("Branch and Bound");
-        JMenuItem p1Heur = new JMenuItem("Aproximado");
+        JMenuItem p1Heur1 = new JMenuItem("Heurístico Guloso");
+        JMenuItem p1Heur2 = new JMenuItem("Heurístico Estocástico");
 
         p1Menu.add(p1BF);
         p1Menu.add(p1BnB);
-        p1Menu.add(p1Heur);
+        p1Menu.add(p1Heur1);
+        p1Menu.add(p1Heur2);
         menuBar.add(p1Menu);
 
         JMenu p2Menu = new JMenu("Problema 2");
         JMenuItem p2Brute = new JMenuItem("Força Bruta");
         JMenuItem p2BnB = new JMenuItem("Branch and Bound");
-        JMenuItem p2Heur = new JMenuItem("Aproximado");
+        JMenuItem p2Heur = new JMenuItem("Heurístico");
 
         p2Menu.add(p2Brute);
         p2Menu.add(p2BnB);
@@ -289,7 +398,8 @@ class GUI extends JFrame {
 
         p1BF.addActionListener(e -> new ProblemSolverDialog(this, 1, ((JMenuItem) e.getSource()).getText()));
         p1BnB.addActionListener(e -> new ProblemSolverDialog(this, 1, ((JMenuItem) e.getSource()).getText()));
-        p1Heur.addActionListener(e -> new ProblemSolverDialog(this, 1, ((JMenuItem) e.getSource()).getText()));
+        p1Heur1.addActionListener(e -> new ProblemSolverDialog(this, 1, ((JMenuItem) e.getSource()).getText()));
+        p1Heur2.addActionListener(e -> new ProblemSolverDialog(this, 1, ((JMenuItem) e.getSource()).getText()));
 
         p2Brute.addActionListener(e -> new ProblemSolverDialog(this, 2, ((JMenuItem) e.getSource()).getText()));
         p2BnB.addActionListener(e -> new ProblemSolverDialog(this, 2, ((JMenuItem) e.getSource()).getText()));
@@ -385,7 +495,7 @@ class GUI extends JFrame {
                     return;
                 }
 
-                if (problem == 1) { // Lógica para o Problema 1
+                if (problem == 1) {
                     String name = stationInput.getText().trim();
                     Optional<Station> station = Station.findByName(stations, name);
 
@@ -396,23 +506,36 @@ class GUI extends JFrame {
                     }
 
                     int id = station.get().id();
-                    AdjacencyList<Integer> graph = generateSimpleAdjacencyList();
+                    var G = generateSimpleAdjacencyList(false);
 
-                SwingWorker<Integer, Void> worker = new SwingWorker<>() {
-                    @Override
-                    protected Integer doInBackground() {
-                        return switch (approach) {
-                            case "Força Bruta" -> null;
-                            default -> throw new IllegalStateException("\"" + approach + "\"" + " não suportada.");
-                        };
-                    }
+                    MaxCycle maxCycle = new MaxCycle(G);
+
+                    SwingWorker<List<Integer>, Void> worker = new SwingWorker<>() {
+                        @Override
+                        protected List<Integer> doInBackground() {
+                            return switch (approach) {
+                                case "Força Bruta" -> maxCycle.bruteForceApproach(id);
+                                case "Heurístico Guloso" -> maxCycle.parcialGreedyHeuristicApproach(id);
+                                case "Heurístico Estocástico" -> maxCycle.randomizedHeuristicApproach(id);
+                                default -> throw new IllegalStateException("\"" + approach + "\"" + " não suportada.");
+                            };
+                        }
 
                         @Override
                         protected void done() {
                             try {
-                                int res = get();
+                                List<Integer> resultPathIds = get();
+
+                                Map<Integer, String> stationNameMap = new HashMap<>();
+                                stations.forEach(s -> stationNameMap.put(s.id(), s.name()));
+
+                                StringBuilder sb = new StringBuilder("Caminho fechado: ");
+                                resultPathIds.forEach(id -> sb.append(stationNameMap.get(id)).append(" -> "));
+                                sb.setLength(sb.length() - 4); // Remove o ultimo " -> "
+                                System.out.println(sb.toString());
+                                int cycleSize = maxCycle.getMax();
                                 JOptionPane.showMessageDialog(ProblemSolverDialog.this,
-                                        "O caminho fechado de maior cardinalidade possuí " + res + " vértices.");
+                                        "O caminho fechado de maior cardinalidade possuí " + cycleSize + " vértices.");
                             } catch (Exception ex) {
                                 JOptionPane.showMessageDialog(ProblemSolverDialog.this,
                                         "Erro na execução: " + ex.getMessage(),
@@ -421,20 +544,22 @@ class GUI extends JFrame {
                         }
                     };
                     worker.execute();
-                } else if (problem == 2) { // Lógica para o Problema 2
-                    AdjacencyListMVC<Integer> graphMVC = generateSimpleAdjacencyListMVC();
-                    graphMVC.print();
-                    SwingWorker<List<Integer>, Void> worker = new SwingWorker<>() { 
+                } else if (problem == 2) {
+                    AdjacencyList<Integer> G = generateSimpleAdjacencyList(true);
+                    G.print();
+
+                    SwingWorker<List<Integer>, Void> worker = new SwingWorker<>() {
                         @Override
                         protected List<Integer> doInBackground() {
                             return switch (approach) {
-                                case "Força Bruta" -> MVC.bruteForceApproach(graphMVC);
-                                default -> throw new IllegalStateException("\"" + approach + "\"" + " não suportada para o Problema 2.");
+                                case "Força Bruta" -> MVC.bruteForceApproach(G);
+                                default -> throw new IllegalStateException(
+                                        "\"" + approach + "\"" + " não suportada para o Problema 2.");
                             };
                         }
 
                         @Override
-                         protected void done() {
+                        protected void done() {
                             try {
                                 List<Integer> res = get();
                                 JOptionPane.showMessageDialog(ProblemSolverDialog.this,
@@ -453,35 +578,17 @@ class GUI extends JFrame {
         }
     }
 
-    AdjacencyList<Integer> generateSimpleAdjacencyList() {
-        AdjacencyList<Integer> G = new AdjacencyList<>();
+    AdjacencyList<Integer> generateSimpleAdjacencyList(boolean useEdgeList) {
+        AdjacencyList<Integer> G = new AdjacencyList<>(useEdgeList);
         lines.forEach(edge -> {
             var s1 = Station.findByName(stations, edge.s1());
             var s2 = Station.findByName(stations, edge.s2());
-            if(!s1.isPresent()) {
-                System.out.println(edge.s1() + " não está presente");
-            }else if(!s2.isPresent()) {
-                System.out.println(edge.s2() + " não está presente");
-            }
-        
-            int v = Station.findByName(stations, edge.s1()).get().id();
-            int u = Station.findByName(stations, edge.s2()).get().id();
-            G.addEdge(v, u);
-        });
-        return G;
-    }
 
-    AdjacencyListMVC<Integer> generateSimpleAdjacencyListMVC() {
-        AdjacencyListMVC<Integer> G = new AdjacencyListMVC<>();
-        lines.forEach(edge -> {
-            var s1 = Station.findByName(stations, edge.s1());
-            var s2 = Station.findByName(stations, edge.s2());
-            if(!s1.isPresent()) {
+            if (!s1.isPresent())
                 System.out.println(edge.s1() + " não está presente");
-            }else if(!s2.isPresent()) {
+            else if (!s2.isPresent())
                 System.out.println(edge.s2() + " não está presente");
-            }
-        
+
             int v = Station.findByName(stations, edge.s1()).get().id();
             int u = Station.findByName(stations, edge.s2()).get().id();
             G.addEdge(v, u);

@@ -15,31 +15,48 @@ public class Main {
     }
 }
 
-class MaxCircule {
-    static int max;
-    static Set<Integer> P;
-    static int s;
+class MaxCycle {
+    private int max;
+    private Set<Integer> maxCycle;
+    private AdjacencyList<Integer> G;
 
-    static int bruteForceApproach(AdjacencyList<Integer> G, int root) {
-        s = root;
+    public MaxCycle(AdjacencyList<Integer> G) {
+        this.G = G;
+    }
+
+    public int bruteForceApproach(int root) {
         max = 0;
-        P = new HashSet<>();
+        maxCycle = new HashSet<>();
+
+        Set<Integer> P = new HashSet<>();
         P.add(root);
-        bruteForce(G, root);
+        bruteForce(P, root, root);
+        P.forEach(System.out::println);
         return max;
     }
 
-    private static void bruteForce(AdjacencyList<Integer> G, int v) {
+    private void bruteForce(Set<Integer> P, int root, int v) {
         for (int u : G.neighbors(v)) {
-            if (u == s && P.size() >= 3 && P.size() > max)
+            if (u == root && P.size() >= 3 && P.size() > max) {
                 max = P.size();
-
+                maxCycle.clear();
+                maxCycle.addAll(P);
+                continue;
+            }
             if (!P.contains(u)) {
                 P.add(u);
-                bruteForce(G, u);
+                bruteForce(P, root, u);
                 P.remove(u);
             }
         }
+    }
+
+    public int getMax() {
+        return max;
+    }
+
+    public Set<Integer> getMaxCyclePath() {
+        return maxCycle;
     }
 }
 
@@ -381,14 +398,14 @@ class GUI extends JFrame {
                     int id = station.get().id();
                     AdjacencyList<Integer> graph = generateSimpleAdjacencyList();
 
-                    SwingWorker<Integer, Void> worker = new SwingWorker<>() {
-                        @Override
-                        protected Integer doInBackground() {
-                            return switch (approach) {
-                                case "Força Bruta" -> MaxCircule.bruteForceApproach(graph, id);
-                                default -> throw new IllegalStateException("\"" + approach + "\"" + " não suportada para o Problema 1.");
-                            };
-                        }
+                SwingWorker<Integer, Void> worker = new SwingWorker<>() {
+                    @Override
+                    protected Integer doInBackground() {
+                        return switch (approach) {
+                            case "Força Bruta" -> null;
+                            default -> throw new IllegalStateException("\"" + approach + "\"" + " não suportada.");
+                        };
+                    }
 
                         @Override
                         protected void done() {
@@ -439,6 +456,14 @@ class GUI extends JFrame {
     AdjacencyList<Integer> generateSimpleAdjacencyList() {
         AdjacencyList<Integer> G = new AdjacencyList<>();
         lines.forEach(edge -> {
+            var s1 = Station.findByName(stations, edge.s1());
+            var s2 = Station.findByName(stations, edge.s2());
+            if(!s1.isPresent()) {
+                System.out.println(edge.s1() + " não está presente");
+            }else if(!s2.isPresent()) {
+                System.out.println(edge.s2() + " não está presente");
+            }
+        
             int v = Station.findByName(stations, edge.s1()).get().id();
             int u = Station.findByName(stations, edge.s2()).get().id();
             G.addEdge(v, u);
@@ -449,6 +474,14 @@ class GUI extends JFrame {
     AdjacencyListMVC<Integer> generateSimpleAdjacencyListMVC() {
         AdjacencyListMVC<Integer> G = new AdjacencyListMVC<>();
         lines.forEach(edge -> {
+            var s1 = Station.findByName(stations, edge.s1());
+            var s2 = Station.findByName(stations, edge.s2());
+            if(!s1.isPresent()) {
+                System.out.println(edge.s1() + " não está presente");
+            }else if(!s2.isPresent()) {
+                System.out.println(edge.s2() + " não está presente");
+            }
+        
             int v = Station.findByName(stations, edge.s1()).get().id();
             int u = Station.findByName(stations, edge.s2()).get().id();
             G.addEdge(v, u);

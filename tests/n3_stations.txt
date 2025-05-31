@@ -1,0 +1,82 @@
+"Saint-Denis-Université" 1025 75
+"Mairie d'Issy" 364 1445
+"Jussieu" 993 1097
+"Boulogne Jean Jaurès" 104 1204
+"Boulogne Pont de St-Cloud" 71 1233
+"Michel Ange Molitor" 186 1191
+"Michel Ange Auteuil" 187 1143
+"Javel André Citroën" 315 1142
+"Balard" 335 1332
+"Invalides" 522 909
+"Richelieu Drouot" 792 690
+"Reuilly-Diderot" 1249 1041
+"Créteil-Préfecture" 1489 1517
+"Trocadéro" 273 859
+"Gambetta" 1400 765
+"Gallieni" 1525 768
+"Madeleine" 560 791
+"Porte de Clignancourt" 868 306
+"Marcadet Poissonniers" 916 371
+"Gare du Nord" 1043 499
+"Gare de l'Est" 1053 561
+"Strasbourg Saint-Denis" 988 689
+"Hôtel de Ville" 954 865
+"Charles de Gaulle Étoile" 357 684
+"Nation" 1327 1018
+"La Défense" 150 440
+"Porte Maillot" 289 576
+"Franklin D. Roosevelt" 485 774
+"Champs Élysées Clemenceau" 521 809
+"Concorde" 553 840
+"Palais Royal Musée du Louvre" 700 863
+"Châtelet" 885 866
+"St-Michel" 839 987
+"Odéon" 824 1019
+"Raspail" 822 1201
+"Montparnasse Bienvenüe" 721 1176
+"Denfert Rochereau" 852 1238
+"Porte d'Orléans" 796 1377
+"Bobigny Pablo Picasso" 1528 325
+"Les Halles" 884 827
+"Bastille" 1092 940
+"Gare de Lyon" 1157 1062
+"Porte Dauphine" 235 679
+"Villiers" 542 510
+"Pont de Levallois Bécon" 384 349
+"Château de Vincennes" 1529 1086
+"Pereire" 476 441
+"Saint-Lazare" 639 621
+"Porte de la Chapelle" 1059 312
+"Gabriel Péri Asnières-Gennevilliers" 452 207
+"Havre Caumartin" 668 686
+"Opéra" 698 717
+"Réaumur Sébastopol" 947 782
+"Arts et Métiers" 1045 760
+"Oberkampf" 1140 751
+"Quai de la Rapée" 1092 1062
+"Gare d'Austerlitz" 1090 1149
+"Place d'Italie" 1023 1292
+"Daumesnil" 1338 1129
+"Bercy" 1260 1205
+"Pasteur" 623 1186
+"La Motte Picquet Grenelle" 433 1090
+"Duroc" 604 1119
+"Sèvres Babylone" 676 1041
+"Cluny La Sorbonne" 870 1023
+"Bir-Hakeim" 330 1003
+"Place de Clichy" 643 456
+"Pigalle" 818 455
+"Stalingrad" 1154 465
+"Jaurès" 1192 499
+"Belleville" 1204 621
+"Père Lachaise" 1330 772
+"La Chapelle" 1052 453
+"Barbès Rochechouart" 965 458
+"République" 1107 713
+"Assemblée Nationale" 556 925
+"Solférino" 597 966
+"La Fourche" 643 413
+"Porte de Clichy" 572 328
+"Liège" 644 519
+"Miromesnil" 576 687
+"Châtillon-Montrouge" 585 1516

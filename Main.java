@@ -209,50 +209,143 @@ class MaxCycle {
 class MVC {
     static int n;
 
-    static List<Integer> bruteForceApproach(AdjacencyList<Integer> G) {
-        n = G.V().size();
-        Set<Integer> vertexSet = G.V();
-        List<Integer> vertexList = new ArrayList<>(vertexSet); // Converte para Lista para acessar os índices
-        long totalSubsets = 1 << n; // 2^n subsets
+    static List<Integer> bruteForceApproach(AdjacencyList<Integer> graph) {
+        // Obtém todos os vértices e conta a quantidade
+        Set<Integer> allVertices = graph.V();
+        int numVertices = allVertices.size();
+        List<Integer> vertexList = new ArrayList<>(allVertices);
+        
+        // Armazena a melhor solução encontrada
+        List<Integer> bestSolution = null;
+        int minSizeFound = numVertices + 1; // Começa com tamanho impossível
+        
+        System.out.println("Grafo possui " + numVertices + " vértices");
 
-        List<Integer> MVC = new ArrayList<>();
-        int minSize = Integer.MAX_VALUE;
-        System.out.println("Tamanho do Grafo: " + n);
-        // Itera de 0 a 2^n - 1
-        for (long i = 0; i < totalSubsets; i++) {
-            Set<Integer> currSubset = new HashSet<>();
-            // Para cada número 'i', verifica cada bit para construir o subset
-            for (int j = 0; j < n; j++) {
-                // Se o j-ésimo bit de 'i' for 1, inclui o j-ésimo elemento do conjunto
-                if ((i & (1 << j)) > 0) {
-                    currSubset.add(vertexList.get(j));
+        // Tenta todas as possíveis combinações usando bitmask
+        long maxSubsets = 1L << numVertices;
+        for (long mask = 0; mask < maxSubsets; mask++) {
+            // Monta o subconjunto atual
+            List<Integer> currentSet = new ArrayList<>();
+            for (int i = 0; i < numVertices; i++) {
+                if ((mask & (1L << i)) != 0) {
+                    currentSet.add(vertexList.get(i));
                 }
             }
-            // Verificar se o subset atual é vertex cover
-            if (currSubset.size() < minSize && isVertexCover(currSubset, G)) { // Otimização para não verificar subsets
-                                                                               // >= que o atual MVC
-                minSize = currSubset.size();
-                MVC = new ArrayList<>(currSubset);
-                System.out
-                        .println("Nova menor Cobertura de Vértices encontrada: " + MVC + " (Tamanho: " + minSize + ")");
+            
+            // Verifica apenas se o conjunto atual for menor que o melhor até agora
+            if (currentSet.size() < minSizeFound) {
+                if (isValidDominatingSet(currentSet, graph)) {
+                    minSizeFound = currentSet.size();
+                    bestSolution = new ArrayList<>(currentSet);
+                    System.out.println("Novo menor conjunto dominante: " + bestSolution + 
+                                    " (tamanho: " + minSizeFound + ")");
+                }
             }
         }
-
-        return MVC;
+        
+        // Caso não encontre solução, retorna lista vazia
+        if (bestSolution == null) {
+            System.out.println("Nenhum conjunto dominante encontrado, retornando lista vazia");
+            return new ArrayList<>();
+        }
+        
+        System.out.println("Conjunto dominante mínimo final: " + bestSolution + 
+                        " (tamanho: " + minSizeFound + ")");
+        return bestSolution;
     }
 
-    public static boolean isVertexCover(Set<Integer> subset, AdjacencyList<Integer> G) {
-        List<List<Integer>> edges = G.getEdges();
-
-        for (List<Integer> edge : edges) {
-            int u = edge.get(0);
-            int v = edge.get(1);
-
-            if (!subset.contains(u) && !subset.contains(v)) {
-                return false;
+    static boolean isValidDominatingSet(List<Integer> subset, AdjacencyList<Integer> graph) {
+        // Começa com os vértices do subconjunto já cobertos
+        Set<Integer> coveredVertices = new HashSet<>(subset);
+        
+        // Verifica cada vértice do grafo
+        for (Integer vertex : graph.V()) {
+            // Se ainda não está coberto
+            if (!coveredVertices.contains(vertex)) {
+                // Verifica se algum vizinho está no subconjunto
+                boolean hasNeighborInSet = false;
+                for (Integer neighbor : graph.neighbors(vertex)) {
+                    if (subset.contains(neighbor)) {
+                        hasNeighborInSet = true;
+                        break;
+                    }
+                }
+                
+                // Se não tem vizinho no subconjunto, não é conjunto dominante
+                if (!hasNeighborInSet) {
+                    return false;
+                }
+                // Marca o vértice como coberto, pois tem vizinho no conjunto
+                coveredVertices.add(vertex);
             }
         }
+        
+        // Todos os vértices estão no subconjunto ou possuem vizinho nele
         return true;
+    }
+
+    static List<Integer> iteratedGreedyApproach(AdjacencyList<Integer> graph, int maxIterations, int removalSize) {
+        Random rand = new Random();
+
+        // Cria solução inicial gulosa
+        Set<Integer> solution = new HashSet<>();
+        List<List<Integer>> edges = graph.getEdges();
+        Set<List<Integer>> uncoveredEdges = new HashSet<>(edges);
+
+        while (!uncoveredEdges.isEmpty()) {
+            Map<Integer, Integer> coverage = new HashMap<>();
+            for (List<Integer> edge : uncoveredEdges) {
+                int u = edge.get(0), v = edge.get(1);
+                coverage.put(u, coverage.getOrDefault(u, 0) + 1);
+                coverage.put(v, coverage.getOrDefault(v, 0) + 1);
+            }
+            int bestVertex = coverage.entrySet().stream()
+                                    .max(Map.Entry.comparingByValue())
+                                    .get().getKey();
+            solution.add(bestVertex);
+            uncoveredEdges.removeIf(edge -> edge.contains(bestVertex));
+        }
+
+        List<Integer> bestSolution = new ArrayList<>(solution);
+
+        for (int iter = 0; iter < maxIterations; iter++) {
+            // Fase de destruição parcial (remove aleatoriamente vértices)
+            List<Integer> partialSolution = new ArrayList<>(solution);
+            for (int i = 0; i < removalSize && !partialSolution.isEmpty(); i++) {
+                int idx = rand.nextInt(partialSolution.size());
+                partialSolution.remove(idx);
+            }
+
+            // Reconstrução (re-adiciona vértices para cobrir todas as arestas)
+            Set<Integer> rebuiltSolution = new HashSet<>(partialSolution);
+            Set<List<Integer>> uncovered = new HashSet<>();
+            for (List<Integer> edge : edges) {
+                if (!rebuiltSolution.contains(edge.get(0)) && !rebuiltSolution.contains(edge.get(1))) {
+                    uncovered.add(edge);
+                }
+            }
+            while (!uncovered.isEmpty()) {
+                Map<Integer, Integer> coverage = new HashMap<>();
+                for (List<Integer> edge : uncovered) {
+                    int u = edge.get(0), v = edge.get(1);
+                    coverage.put(u, coverage.getOrDefault(u, 0) + 1);
+                    coverage.put(v, coverage.getOrDefault(v, 0) + 1);
+                }
+                int bestVertex = coverage.entrySet().stream()
+                                        .max(Map.Entry.comparingByValue())
+                                        .get().getKey();
+                rebuiltSolution.add(bestVertex);
+                uncovered.removeIf(edge -> edge.contains(bestVertex));
+            }
+
+            // Atualiza a solução atual e a melhor solução encontrada
+            solution = rebuiltSolution;
+            if (solution.size() < bestSolution.size()) {
+                bestSolution = new ArrayList<>(solution);
+            }
+        }
+        System.out.println("Melhor solução encontrada: " + bestSolution + " (Tamanho: " + bestSolution.size() + ")");
+        return bestSolution;
     }
 }
 
@@ -333,6 +426,10 @@ class GUI extends JFrame {
     static final Pattern LINE_LINE_HEADER_REGEX = Pattern.compile("(\\S+)\\s+(\\S+)\\s+(\\d+)");
     static final Pattern LINE_LINE_BODY_REGEX = Pattern.compile("\"([^\"]+)\"\\s+\"([^\"]+)\"");
 
+    Set<Integer> highlightedVertices = new HashSet<>();
+    Set<List<Integer>> highlightedEdges = new HashSet<>();
+    AdjacencyList<Integer> graphForHighlighting;
+
     static final Map<String, Color> colorMap = Map.ofEntries(
             Map.entry("azul", Color.BLUE),
             Map.entry("vermelha", Color.RED),
@@ -388,7 +485,7 @@ class GUI extends JFrame {
         JMenu p2Menu = new JMenu("Problema 2");
         JMenuItem p2Brute = new JMenuItem("Força Bruta");
         JMenuItem p2BnB = new JMenuItem("Branch and Bound");
-        JMenuItem p2Heur = new JMenuItem("Heurístico");
+        JMenuItem p2Heur = new JMenuItem("Heurístico (Iterated Greedy Algorithm)");
 
         p2Menu.add(p2Brute);
         p2Menu.add(p2BnB);
@@ -444,170 +541,201 @@ class GUI extends JFrame {
         static final int DIALOG_INIT_WIDTH = 480;
         static final int DIALOG_INIT_HEIGHT = 360;
 
-        ProblemSolverDialog(JFrame owner, int problem, String approach) {
-            super(owner, "Problema " + Integer.toString(problem), false);
-            setLayout(new BorderLayout());
-            setSize(DIALOG_INIT_WIDTH, DIALOG_INIT_HEIGHT);
-            setLocationRelativeTo(owner);
+    ProblemSolverDialog(JFrame owner, int problem, String approach) {
+        super(owner, "Problema " + Integer.toString(problem), false);
+        setLayout(new BorderLayout());
+        setSize(DIALOG_INIT_WIDTH, DIALOG_INIT_HEIGHT);
+        setLocationRelativeTo(owner);
 
-            JPanel content = new JPanel();
-            content.setLayout(new BoxLayout(content, BoxLayout.Y_AXIS));
-            content.setBorder(BorderFactory.createEmptyBorder(15, 20, 15, 20));
+        JPanel content = new JPanel();
+        content.setLayout(new BoxLayout(content, BoxLayout.Y_AXIS));
+        content.setBorder(BorderFactory.createEmptyBorder(15, 20, 15, 20));
 
-            JLabel title = new JLabel("Técnica de Projeto escolhida: " + approach);
-            title.setAlignmentX(Component.LEFT_ALIGNMENT);
-            content.add(title);
+        JLabel title = new JLabel("Técnica de Projeto escolhida: " + approach);
+        title.setAlignmentX(Component.LEFT_ALIGNMENT);
+        content.add(title);
 
-            content.add(Box.createVerticalStrut(10));
+        content.add(Box.createVerticalStrut(10));
 
-            String context;
-            String goal;
-            switch (problem) {
-                case 1 -> {
-                    context = "Determinar o número máximo de estações que um turista poderá visitar com um só passe, saindo e retornando de uma determinada estação.";
-                    goal = "Encontrar o conjunto de vértices de maior cardinalidade que formam um caminho fechado no grafo partindo de um determinado vértice raiz.";
-                }
-                case 2 -> {
-                    context = "Determinar as estações para instalação de guichês para venda de passes, de modo que um turista não precise caminhar mais que uma estação para encontrar um guichê. Devem ser determinados o número mínimo de guichês a serem instalados e as estações que devem recebe-los.";
-                    goal = "Encontrar o minimum vertex cover set do grafo e sua respectiva cardinalidade.";
-                }
-                default -> {
-                    context = "Error";
-                    goal = "Error";
-                }
+        String context;
+        String goal;
+        switch (problem) {
+            case 1 -> {
+                context = "Determinar o número máximo de estações que um turista poderá visitar com um só passe, saindo e retornando de uma determinada estação.";
+                goal = "Encontrar o conjunto de vértices de maior cardinalidade que formam um caminho fechado no grafo partindo de um determinado vértice raiz.";
             }
+            case 2 -> {
+                context = "Determinar as estações para instalação de guichês para venda de passes, de modo que um turista não precise caminhar mais que uma estação para encontrar um guichê. Devem ser determinados o número mínimo de guichês a serem instalados e as estações que devem recebe-los.";
+                goal = "Encontrar o minimum vertex cover set do grafo e sua respectiva cardinalidade.";
+            }
+            default -> {
+                context = "Error";
+                goal = "Error";
+            }
+        }
 
-            JLabel contextLabel = new JLabel("Contextualização:");
-            contextLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
-            content.add(contextLabel);
-            JTextArea contextArea = new JTextArea(context);
-            contextArea.setAlignmentX(Component.LEFT_ALIGNMENT);
-            contextArea.setLineWrap(true);
-            contextArea.setWrapStyleWord(true);
-            contextArea.setEditable(false);
-            contextArea.setOpaque(false);
-            content.add(contextArea);
-            content.add(Box.createVerticalStrut(10));
-            JLabel goalLabel = new JLabel("Objetivo:");
-            goalLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
-            content.add(goalLabel);
+        JLabel contextLabel = new JLabel("Contextualização:");
+        contextLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
+        content.add(contextLabel);
+        JTextArea contextArea = new JTextArea(context);
+        contextArea.setAlignmentX(Component.LEFT_ALIGNMENT);
+        contextArea.setLineWrap(true);
+        contextArea.setWrapStyleWord(true);
+        contextArea.setEditable(false);
+        contextArea.setOpaque(false);
+        content.add(contextArea);
+        content.add(Box.createVerticalStrut(10));
+        JLabel goalLabel = new JLabel("Objetivo:");
+        goalLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
+        content.add(goalLabel);
 
-            JTextArea goalArea = new JTextArea(goal);
-            goalArea.setAlignmentX(Component.LEFT_ALIGNMENT);
-            goalArea.setLineWrap(true);
-            goalArea.setWrapStyleWord(true);
-            goalArea.setEditable(false);
-            goalArea.setOpaque(false);
-            content.add(goalArea);
+        JTextArea goalArea = new JTextArea(goal);
+        goalArea.setAlignmentX(Component.LEFT_ALIGNMENT);
+        goalArea.setLineWrap(true);
+        goalArea.setWrapStyleWord(true);
+        goalArea.setEditable(false);
+        goalArea.setOpaque(false);
+        content.add(goalArea);
 
-            content.add(Box.createVerticalStrut(10));
-            JLabel stationLabel = new JLabel("Digite o nome da estação raiz:");
-            content.add(Box.createVerticalStrut(10));
+        content.add(Box.createVerticalStrut(10));
+        JLabel stationLabel = new JLabel("Digite o nome da estação raiz:");
+        content.add(Box.createVerticalStrut(10));
 
-            JTextField stationInput = new JTextField();
+        JTextField stationInput = new JTextField();
+        stationInput.setMaximumSize(new Dimension(Integer.MAX_VALUE, 30));
+        content.add(Box.createVerticalStrut(10));
 
-            stationInput.setMaximumSize(new Dimension(Integer.MAX_VALUE, 30));
-            content.add(Box.createVerticalStrut(10));
+        if (problem == 1) {
+            content.add(stationLabel);
+            content.add(stationInput);
+        }
+
+        JButton runButton = new JButton("Executar");
+        content.add(runButton);
+
+        add(content, BorderLayout.CENTER);
+
+        runButton.addActionListener(e -> {
+            if (stations.isEmpty() || lines.isEmpty()) {
+                JOptionPane.showMessageDialog(this,
+                        "É preciso carregar as entradas de estações e de linhas do metro.",
+                        "Nenhum input foi fornecido ainda", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
 
             if (problem == 1) {
-                content.add(stationLabel);
-                content.add(stationInput);
-            }
+                String name = stationInput.getText().trim();
+                Optional<Station> station = Station.findByName(stations, name);
 
-            JButton runButton = new JButton("Executar");
-            content.add(runButton);
-
-            add(content, BorderLayout.CENTER);
-
-            runButton.addActionListener(e -> {
-                if (stations.isEmpty() || lines.isEmpty()) {
-                    JOptionPane.showMessageDialog(this,
-                            "É preciso carregar as entradas de estações e de linhas do metro.",
-                            "Nenhum input foi fornecido ainda", JOptionPane.ERROR_MESSAGE);
+                if (station.isEmpty()) {
+                    JOptionPane.showMessageDialog(this, "Estação \"" + name + "\" não encontrada.",
+                            "Estação Inválida", JOptionPane.ERROR_MESSAGE);
                     return;
                 }
 
-                if (problem == 1) {
-                    String name = stationInput.getText().trim();
-                    Optional<Station> station = Station.findByName(stations, name);
+                int id = station.get().id();
+                var G = generateSimpleAdjacencyList(false);
 
-                    if (station.isEmpty()) {
-                        JOptionPane.showMessageDialog(this, "Estação \"" + name + "\" não encontrada.",
-                                "Estação Inválida", JOptionPane.ERROR_MESSAGE);
-                        return;
+                MaxCycle maxCycle = new MaxCycle(G);
+
+                SwingWorker<List<Integer>, Void> worker = new SwingWorker<>() {
+                    @Override
+                    protected List<Integer> doInBackground() {
+                        return switch (approach) {
+                            case "Força Bruta" -> maxCycle.bruteForceApproach(id);
+                            case "Branch and Bound" -> maxCycle.branchAndBoundApproach(id);
+                            case "Heurístico Guloso" -> maxCycle.parcialGreedyHeuristicApproach(id);
+                            case "Heurístico Estocástico" -> maxCycle.randomizedHeuristicApproach(id);
+                            default -> throw new IllegalStateException("\"" + approach + "\"" + " não suportada.");
+                        };
                     }
 
-                    int id = station.get().id();
-                    var G = generateSimpleAdjacencyList(false);
+                    @Override
+                    protected void done() {
+                    try {
+                        List<Integer> resultPathIds = get();
+                        System.out.println("Resultado: " + resultPathIds);
 
-                    MaxCycle maxCycle = new MaxCycle(G);
+                        Map<Integer, String> stationNameMap = new HashMap<>();
+                        stations.forEach(s -> stationNameMap.put(s.id(), s.name()));
 
-                    SwingWorker<List<Integer>, Void> worker = new SwingWorker<>() {
-                        @Override
-                        protected List<Integer> doInBackground() {
-                            return switch (approach) {
-                                case "Força Bruta" -> maxCycle.bruteForceApproach(id);
-                                case "Branch and Bound"->maxCycle.branchAndBoundApproach(id);
-                                case "Heurístico Guloso" -> maxCycle.parcialGreedyHeuristicApproach(id);
-                                case "Heurístico Estocástico" -> maxCycle.randomizedHeuristicApproach(id);
-                                default -> throw new IllegalStateException("\"" + approach + "\"" + " não suportada.");
-                            };
-                        }
+                        StringBuilder sb = new StringBuilder("Caminho fechado: ");
+                        resultPathIds.forEach(id -> sb.append(stationNameMap.get(id)).append(" -> "));
+                        sb.setLength(sb.length() - 4); // Remove o último " -> "
+                        System.out.println(sb.toString());
 
-                        @Override
-                        protected void done() {
-                            try {
-                                List<Integer> resultPathIds = get();
+                        int cycleSize = maxCycle.getMax();
 
-                                Map<Integer, String> stationNameMap = new HashMap<>();
-                                stations.forEach(s -> stationNameMap.put(s.id(), s.name()));
+                        // Limpa destaques anteriores
+                        highlightedVertices.clear();
+                        highlightedEdges.clear();
 
-                                StringBuilder sb = new StringBuilder("Caminho fechado: ");
-                                resultPathIds.forEach(id -> sb.append(stationNameMap.get(id)).append(" -> "));
-                                sb.setLength(sb.length() - 4); // Remove o ultimo " -> "
-                                System.out.println(sb.toString());
-                                int cycleSize = maxCycle.getMax();
-                                JOptionPane.showMessageDialog(ProblemSolverDialog.this,
-                                        "O caminho fechado de maior cardinalidade possuí " + cycleSize + " vértices.");
-                            } catch (Exception ex) {
-                                JOptionPane.showMessageDialog(ProblemSolverDialog.this,
-                                        "Erro na execução: " + ex.getMessage(),
-                                        "Erro", JOptionPane.ERROR_MESSAGE);
+                        if (!resultPathIds.isEmpty()) {
+                            // Destaca só o vértice raiz
+                            highlightedVertices.add(resultPathIds.get(0));
+
+                            // Destaca as arestas do caminho (ciclo)
+                            for (int i = 0; i < resultPathIds.size() - 1; i++) {
+                                int v1 = resultPathIds.get(i);
+                                int v2 = resultPathIds.get(i + 1);
+                                List<Integer> edge = v1 < v2 ? List.of(v1, v2) : List.of(v2, v1);
+                                highlightedEdges.add(edge);
                             }
                         }
-                    };
-                    worker.execute();
-                } else if (problem == 2) {
-                    AdjacencyList<Integer> G = generateSimpleAdjacencyList(true);
-                    G.print();
 
-                    SwingWorker<List<Integer>, Void> worker = new SwingWorker<>() {
-                        @Override
-                        protected List<Integer> doInBackground() {
-                            return switch (approach) {
-                                case "Força Bruta" -> MVC.bruteForceApproach(G);
-                                default -> throw new IllegalStateException(
-                                        "\"" + approach + "\"" + " não suportada para o Problema 2.");
-                            };
-                        }
+                        mainPanel.repaint();
 
-                        @Override
-                        protected void done() {
-                            try {
-                                List<Integer> res = get();
-                                JOptionPane.showMessageDialog(ProblemSolverDialog.this,
-                                        "O MVC possui " + res.size() + " vértices.");
-                            } catch (Exception ex) {
-                                JOptionPane.showMessageDialog(ProblemSolverDialog.this,
-                                        "Erro na execução: " + ex.getMessage(),
-                                        "Erro", JOptionPane.ERROR_MESSAGE);
-                            }
-                        }
-                    };
-                    worker.execute();
+                        JOptionPane.showMessageDialog(ProblemSolverDialog.this,
+                                "O caminho fechado de maior cardinalidade possui " + cycleSize + " vértices.");
+                    } catch (Exception ex) {
+                        JOptionPane.showMessageDialog(ProblemSolverDialog.this,
+                                "Erro na execução: " + ex.getMessage(),
+                                "Erro", JOptionPane.ERROR_MESSAGE);
+                    }
                 }
-            });
-            setVisible(true);
+                };
+                worker.execute();
+            } else if (problem == 2) {
+                graphForHighlighting = generateSimpleAdjacencyList(true);
+                AdjacencyList<Integer> G = generateSimpleAdjacencyList(true);
+                System.out.println("Grafo gerado:");
+                G.print();
+
+                SwingWorker<List<Integer>, Void> worker = new SwingWorker<>() {
+                    @Override
+                    protected List<Integer> doInBackground() {
+                        return switch (approach) {
+                            case "Força Bruta" -> MVC.bruteForceApproach(G);
+                            case "Heurístico (Iterated Greedy Algorithm)" -> MVC.iteratedGreedyApproach(G, 100, 3);
+                            default -> throw new IllegalStateException(
+                                    "\"" + approach + "\"" + " não suportada para o Problema 2.");
+                        };
+                    }
+
+                    @Override
+                    protected void done() {
+                    try {
+                        List<Integer> res = get();
+                        // Limpa destaque para evitar restos
+                        highlightedVertices.clear();
+                        highlightedEdges.clear();
+                        highlightedVertices.addAll(res);
+
+                        mainPanel.repaint();
+
+                        JOptionPane.showMessageDialog(ProblemSolverDialog.this,
+                                "O MVC possui " + res.size() + " vértices.");
+                    } catch (Exception ex) {
+                        JOptionPane.showMessageDialog(ProblemSolverDialog.this,
+                                "Erro na execução: " + ex.getMessage(),
+                                "Erro", JOptionPane.ERROR_MESSAGE);
+                    }
+                }
+                };
+                worker.execute();
+            }
+        });
+        setVisible(true);
         }
     }
 
@@ -724,17 +852,38 @@ class GUI extends JFrame {
             if (v.isPresent() && u.isPresent()) {
                 Cordinates vPos = v.get().position();
                 Cordinates uPos = u.get().position();
-                g.setColor(uv.color());
-                g.setStroke(EDGE_STROKE);
+
+                int v1 = v.get().id();
+                int v2 = u.get().id();
+                List<Integer> edge = v1 < v2 ? List.of(v1, v2) : List.of(v2, v1);
+
+                if (highlightedEdges.contains(edge)) {
+                    g.setColor(Color.RED);
+                    g.setStroke(new BasicStroke(8)); // Linha mais grossa
+                } else {
+                    g.setColor(uv.color());
+                    g.setStroke(EDGE_STROKE);
+                }
                 g.drawLine(vPos.x(), vPos.y(), uPos.x(), uPos.y());
             }
         }
 
         void paintNode(Graphics2D g, Station v) {
-            g.setColor(Color.black);
             int cx = CENTER_NODE_POS.apply(v.position().x());
             int cy = CENTER_NODE_POS.apply(v.position().y());
-            g.fillOval(cx, cy, NODE_DIAMETER, NODE_DIAMETER);
+
+            if (highlightedVertices.contains(v.id())) {
+                // Vértice raiz destacado: maior, cor vermelha e contorno branco
+                int radius = NODE_DIAMETER + 8;
+                g.setColor(Color.RED);
+                g.fillOval(cx - 4, cy - 4, radius, radius);
+                g.setColor(Color.BLACK);
+                g.setStroke(new BasicStroke(3));
+                g.drawOval(cx - 4, cy - 4, radius, radius);
+            } else {
+                g.setColor(NODE_COLOR);
+                g.fillOval(cx, cy, NODE_DIAMETER, NODE_DIAMETER);
+            }
             paintNodeLabel(g, cx, cy, v.name());
         }
 

@@ -206,18 +206,24 @@ class MaxCycle {
     }
 }
 
-class MVC {
-    static int n;
+class MDS {
+    private AdjacencyList<Integer> G;
+    public Set<Integer> minDominatingSet;
+    private int upperBound;
 
-    static List<Integer> bruteForceApproach(AdjacencyList<Integer> G) {
-        n = G.V().size();
+    MDS(AdjacencyList<Integer> G){
+        this.G = G;
+        minDominatingSet = new HashSet<Integer>();
+    }
+
+    int bruteForceApproach() {
+        int n = G.V().size();
         Set<Integer> vertexSet = G.V();
         List<Integer> vertexList = new ArrayList<>(vertexSet); // Converte para Lista para acessar os índices
         long totalSubsets = 1 << n; // 2^n subsets
 
         List<Integer> MVC = new ArrayList<>();
         int minSize = Integer.MAX_VALUE;
-        System.out.println("Tamanho do Grafo: " + n);
         // Itera de 0 a 2^n - 1
         for (long i = 0; i < totalSubsets; i++) {
             Set<Integer> currSubset = new HashSet<>();
@@ -229,19 +235,18 @@ class MVC {
                 }
             }
             // Verificar se o subset atual é vertex cover
-            if (currSubset.size() < minSize && isVertexCover(currSubset, G)) { // Otimização para não verificar subsets
+            if (currSubset.size() < minSize && isVertexCover(currSubset)) { // Otimização para não verificar subsets
                                                                                // >= que o atual MVC
                 minSize = currSubset.size();
                 MVC = new ArrayList<>(currSubset);
-                System.out
-                        .println("Nova menor Cobertura de Vértices encontrada: " + MVC + " (Tamanho: " + minSize + ")");
+                System.out.println("Nova menor Cobertura de Vértices encontrada: " + MVC + " (Tamanho: " + minSize + ")");
             }
         }
 
-        return MVC;
+        return MVC.size();
     }
 
-    public static boolean isVertexCover(Set<Integer> subset, AdjacencyList<Integer> G) {
+    public boolean isVertexCover(Set<Integer> subset) {
         List<List<Integer>> edges = G.getEdges();
 
         for (List<Integer> edge : edges) {
@@ -254,13 +259,169 @@ class MVC {
         }
         return true;
     }
+
+    public int branchAndBoundApproach(Set<Integer> currentInSet, Set<Integer> currentOutSet, Set<Integer> undecidedVertices){
+        // Condição de parada, encontrou conjunto dominante
+        if (checkFullyDominated(currentInSet)) {
+            if (currentInSet.size() < this.upperBound) {
+                this.upperBound = currentInSet.size();
+                this.minDominatingSet = new HashSet<>(currentInSet);
+                System.out.println("MDS: " + this.minDominatingSet + ", Size: " + this.upperBound);
+            }
+            return currentInSet.size(); 
+        }
+
+        // Condição de Parada, sem vértices restantes e não é conjunto dominante
+        if (undecidedVertices.isEmpty()) {
+            return upperBound;
+        }
+
+        // Poda com base no limite inferior
+        int lb = lowerBound(currentInSet, currentOutSet, undecidedVertices);
+        if (lb >= this.upperBound) {
+            return upperBound;
+        }
+
+        int nextVertex = -1;
+        int maxDegreeFound = -1;
+
+        // Cálculo do grau dinâmico
+        // Próximo vértice é o que cobre mais vértices não dominados
+        // Interseção entre vizinhos fechados e undecidedVertices
+        for (int candidateVertex : undecidedVertices) { // Itera pelos vértices sem classificação
+            Set<Integer> currentUndominated = new HashSet<>();
+            for (int v : this.G.V()) {
+                if (!isVertexDominated(v, currentInSet)) { 
+                    currentUndominated.add(v); // Adiciona os vértices não dominados a um Set
+                }
+            }
+
+            int currentDynamicDegree = 0;
+            Set<Integer> closedNeighbors = this.G.closedNeighbors(candidateVertex);
+
+            for (int v : closedNeighbors) { // Verifica se os vizinhos fechados do candidato estão sendo contabilizados
+                if (currentUndominated.contains(v)) {
+                    currentDynamicDegree++;
+                }
+            }
+
+            // Atualiza o melhor candidato se o atual for melhor
+            if (currentDynamicDegree > maxDegreeFound) {
+                maxDegreeFound = currentDynamicDegree;
+                nextVertex = candidateVertex;
+            } 
+        }
+    
+        Set<Integer> remainingUndecided = new HashSet<>(undecidedVertices);
+        remainingUndecided.remove(nextVertex);
+
+        // nextVertex no conjunto dominante
+        Set<Integer> inSetBranch1 = new HashSet<>(currentInSet);
+        inSetBranch1.add(nextVertex);
+        
+        int nextVertexIn = branchAndBoundApproach(inSetBranch1, currentOutSet, remainingUndecided);
+
+        // nextVertex não está no conjunto dominante
+        Set<Integer> newOUT_Branch2 = new HashSet<>(currentOutSet);
+        newOUT_Branch2.add(nextVertex);
+        int nextVertexOut = branchAndBoundApproach(currentInSet, newOUT_Branch2, remainingUndecided);
+
+        return Math.min(nextVertexIn, nextVertexOut);
+    }
+
+    private boolean isVertexDominated(int vertex, Set<Integer> currentInSet) {
+        if (currentInSet.contains(vertex)) {
+            return true;
+        }
+        for (int v : this.G.neighbors(vertex)) {
+            if (currentInSet.contains(v)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean checkFullyDominated(Set<Integer> currentInSet) {
+        for (int v : this.G.V()) {
+            if (!isVertexDominated(v, currentInSet)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private int lowerBound(Set<Integer> currentInSet, Set<Integer> currentOutSet, Set<Integer> undecidedVertices) {
+        int costSoFar = currentInSet.size();
+
+        // Encontrar vértices não dominados por currentInSet
+        Set<Integer> notDominatedByCurrentSet = new HashSet<>();
+        for (int v : this.G.V()) {
+            if (!isVertexDominated(v, currentInSet)) {
+                notDominatedByCurrentSet.add(v);
+            }
+        }
+       
+        for (int vCoverTarget : notDominatedByCurrentSet) {
+            if (currentOutSet.contains(vCoverTarget)) {
+                boolean canBeCoveredByUndecided = false;
+                for (int v : this.G.neighbors(vCoverTarget)) {
+                    if (undecidedVertices.contains(v)) {
+                        canBeCoveredByUndecided = true;
+                        break;
+                    }
+                }
+                if (!canBeCoveredByUndecided) {
+                    return Integer.MAX_VALUE; 
+                }
+            }
+        }
+
+       
+        int k_max = 0;
+        for (int s_candidate : undecidedVertices) {
+            Set<Integer> dominatedBySCandidateInU = new HashSet<>();
+            // s_candidate domina a si mesmo
+            if (notDominatedByCurrentSet.contains(s_candidate)) {
+                dominatedBySCandidateInU.add(s_candidate);
+            }
+            // s_candidate domina seus vizinhos
+            for (int neighbor_of_s : this.G.neighbors(s_candidate)) {
+                if (notDominatedByCurrentSet.contains(neighbor_of_s)) {
+                    dominatedBySCandidateInU.add(neighbor_of_s);
+                }
+            }
+            int current_s_covers_count = dominatedBySCandidateInU.size();
+            
+            if (current_s_covers_count > k_max) {
+                k_max = current_s_covers_count;
+            }
+        }
+        if (k_max == 0) { 
+            return Integer.MAX_VALUE;
+        }
+
+        // Calcular o número adicional de vértices necessários (estimativa)
+        int additional_vertices_needed = (int) Math.ceil((double) notDominatedByCurrentSet.size() / k_max);
+        
+        return costSoFar + additional_vertices_needed;
+    }
+
+    public int solveBranchAndBound(Set<Integer> currentInSet, Set<Integer> currentOutSet, Set<Integer> undecidedVertices){
+        this.upperBound = this.G.V().size() + 1;
+        this.minDominatingSet = new HashSet<>();
+        return branchAndBoundApproach(currentInSet, currentOutSet, undecidedVertices);
+    }
+
 }
 
 class AdjacencyList<T> {
     private final Map<T, Set<T>> adj;
     private boolean useEdgeList;
     private List<List<T>> edges;
+    private int numEdges;
 
+    public int getNumEdges(){  return numEdges; }
+    
     public AdjacencyList() {
         this.adj = new HashMap<>();
         this.useEdgeList = false;
@@ -270,10 +431,18 @@ class AdjacencyList<T> {
         this.useEdgeList = useEdgeList;
         this.adj = new HashMap<>();
         this.edges = new ArrayList<>();
+        this.numEdges = 0;
     }
 
     public Set<T> neighbors(T v) {
         return adj.getOrDefault(v, Collections.emptySet());
+    }
+
+    public Set<T> closedNeighbors(T v){ // neighbors + v
+        Set<T> closedNeighbors = new HashSet<>(neighbors(v));
+        closedNeighbors.add(v);
+
+        return closedNeighbors;
     }
 
     public Set<T> V() {
@@ -287,19 +456,81 @@ class AdjacencyList<T> {
             adj.put(u, new HashSet<>());
         var a = adj.get(v).add(u);
         var b = adj.get(u).add(v);
-        if (useEdgeList)
+        if (useEdgeList){
             edges.add(List.of(v, u));
+            numEdges++;
+        }
+
         return a || b;
     }
 
+
     public int degree(T v) {
         return neighbors(v).size();
+    }
+
+    @Override
+    public AdjacencyList<T> clone() {
+        AdjacencyList<T> newGraph = new AdjacencyList<>();
+
+        for (Map.Entry<T, Set<T>> entry : this.adj.entrySet()) {
+            newGraph.adj.put(entry.getKey(), new HashSet<>(entry.getValue()));
+        }
+        newGraph.numEdges = this.numEdges;
+
+        return newGraph;
     }
 
     public List<List<T>> getEdges() {
         if (useEdgeList)
             return edges;
         throw new UnsupportedOperationException();
+    }
+
+    public T getMaxDegreeVertex(){
+        Set<T> vertexSet = V();
+        int maxDegree = -1;
+        T maxDegreeVertex = null; 
+
+        for(T v : vertexSet){
+            int currentDegree = degree(v); 
+            if(currentDegree > maxDegree){
+                maxDegree = currentDegree;
+                maxDegreeVertex = v;
+            }
+        }
+        return maxDegreeVertex;
+    }
+
+    public boolean removeVertex(T v) {
+        if (!adj.containsKey(v)) {
+            System.out.println("Vértice " + v + " não encontrado.");
+            return false; 
+        }
+        // Remover aresta 
+        Set<T> neighborsOfV = adj.get(v);
+        if (neighborsOfV != null) { 
+            for (T neighbor : neighborsOfV) {
+                if (adj.containsKey(neighbor)) {
+                    adj.get(neighbor).remove(v); 
+                    numEdges--;
+                }
+            }
+        }
+
+        // Remover 'v' do mapa de adjacência
+        adj.remove(v);
+        
+        return true; 
+    }
+
+    public boolean removeMultipleVertex(Set<T> v) {
+        for(T i : v){
+            if(!removeVertex(i)){
+                return false;
+            }
+        }
+        return true;
     }
 
     public void print() {
@@ -579,13 +810,13 @@ class GUI extends JFrame {
                     worker.execute();
                 } else if (problem == 2) {
                     AdjacencyList<Integer> G = generateSimpleAdjacencyList(true);
-                    G.print();
-
-                    SwingWorker<List<Integer>, Void> worker = new SwingWorker<>() {
+                    MDS mds = new MDS(G);
+                    SwingWorker<Integer, Void> worker = new SwingWorker<>() {
                         @Override
-                        protected List<Integer> doInBackground() {
+                        protected Integer doInBackground() {
                             return switch (approach) {
-                                case "Força Bruta" -> MVC.bruteForceApproach(G);
+                                case "Força Bruta" -> mds.bruteForceApproach();
+                                case "Branch and Bound" -> mds.solveBranchAndBound(new HashSet<Integer>(), new HashSet<Integer>(), new HashSet<Integer>(G.V()));
                                 default -> throw new IllegalStateException(
                                         "\"" + approach + "\"" + " não suportada para o Problema 2.");
                             };
@@ -594,9 +825,19 @@ class GUI extends JFrame {
                         @Override
                         protected void done() {
                             try {
-                                List<Integer> res = get();
+                                int res = get();
+            
+                                List<Integer> resultPathIds = mds.minDominatingSet.stream().toList();
+                                Map<Integer, String> stationNameMap = new HashMap<>();
+                                stations.forEach(s -> stationNameMap.put(s.id(), s.name()));
+
+                                StringBuilder sb = new StringBuilder("MDS: ");
+                                resultPathIds.forEach(id -> sb.append(stationNameMap.get(id)).append(" -> "));
+                                sb.setLength(sb.length() - 4); 
+                                System.out.println(sb.toString());
+
                                 JOptionPane.showMessageDialog(ProblemSolverDialog.this,
-                                        "O MVC possui " + res.size() + " vértices.");
+                                        "A Menor Cobertura de Vértices possui " + res + " vértices.");
                             } catch (Exception ex) {
                                 JOptionPane.showMessageDialog(ProblemSolverDialog.this,
                                         "Erro na execução: " + ex.getMessage(),

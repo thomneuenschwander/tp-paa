@@ -288,8 +288,8 @@ class MDS {
         // Cálculo do grau dinâmico
         // Próximo vértice é o que cobre mais vértices não dominados
         // Interseção entre vizinhos fechados e undecidedVertices
-        for (int candidateVertex : undecidedVertices) { // Itera pelos vértices sem classificação
-            Set<Integer> currentUndominated = new HashSet<>();
+        Set<Integer> currentUndominated = new HashSet<>();
+        for (int candidateVertex : undecidedVertices) { 
             for (int v : this.G.V()) {
                 if (!isVertexDominated(v, currentInSet)) { 
                     currentUndominated.add(v); // Adiciona os vértices não dominados a um Set
@@ -322,9 +322,9 @@ class MDS {
         int nextVertexIn = branchAndBoundApproach(inSetBranch1, currentOutSet, remainingUndecided);
 
         // nextVertex não está no conjunto dominante
-        Set<Integer> newOUT_Branch2 = new HashSet<>(currentOutSet);
-        newOUT_Branch2.add(nextVertex);
-        int nextVertexOut = branchAndBoundApproach(currentInSet, newOUT_Branch2, remainingUndecided);
+        Set<Integer> outSetBranch2 = new HashSet<>(currentOutSet);
+        outSetBranch2.add(nextVertex);
+        int nextVertexOut = branchAndBoundApproach(currentInSet, outSetBranch2, remainingUndecided);
 
         return Math.min(nextVertexIn, nextVertexOut);
     }
@@ -351,7 +351,7 @@ class MDS {
     }
 
     private int lowerBound(Set<Integer> currentInSet, Set<Integer> currentOutSet, Set<Integer> undecidedVertices) {
-        int costSoFar = currentInSet.size();
+        int currentSetSize = currentInSet.size();
 
         // Encontrar vértices não dominados por currentInSet
         Set<Integer> notDominatedByCurrentSet = new HashSet<>();
@@ -361,11 +361,12 @@ class MDS {
             }
         }
        
-        for (int vCoverTarget : notDominatedByCurrentSet) {
-            if (currentOutSet.contains(vCoverTarget)) {
+        // Verificar vértices que não são dominados e estão em currentOut
+        for (int v : notDominatedByCurrentSet) {
+            if (currentOutSet.contains(v)) {
                 boolean canBeCoveredByUndecided = false;
-                for (int v : this.G.neighbors(vCoverTarget)) {
-                    if (undecidedVertices.contains(v)) {
+                for (int u : this.G.neighbors(v)) {
+                    if (undecidedVertices.contains(u)) { // Caso o vértice não possa ser dominado por seus vizinhos não existe solução válida
                         canBeCoveredByUndecided = true;
                         break;
                     }
@@ -375,35 +376,29 @@ class MDS {
                 }
             }
         }
-
        
-        int k_max = 0;
-        for (int s_candidate : undecidedVertices) {
-            Set<Integer> dominatedBySCandidateInU = new HashSet<>();
-            // s_candidate domina a si mesmo
-            if (notDominatedByCurrentSet.contains(s_candidate)) {
-                dominatedBySCandidateInU.add(s_candidate);
-            }
-            // s_candidate domina seus vizinhos
-            for (int neighbor_of_s : this.G.neighbors(s_candidate)) {
-                if (notDominatedByCurrentSet.contains(neighbor_of_s)) {
-                    dominatedBySCandidateInU.add(neighbor_of_s);
-                }
-            }
-            int current_s_covers_count = dominatedBySCandidateInU.size();
+        int k = 0; // Vértice que cobre mais vértices não dominados
+        for (int v : undecidedVertices) {
+
+            Set<Integer> verticesDominatedByV = G.closedNeighbors(v);
+            // Interseção de verticesDominatedByV com notDominatedByCurrentSet
+            Set<Integer> intersection = new HashSet<>(verticesDominatedByV);
+            intersection.retainAll(notDominatedByCurrentSet); // Operação de interseção
+
+            int vCover = intersection.size();
             
-            if (current_s_covers_count > k_max) {
-                k_max = current_s_covers_count;
+            if (v > k) {
+                k = vCover;
             }
         }
-        if (k_max == 0) { 
+        if (k == 0) { 
             return Integer.MAX_VALUE;
         }
 
-        // Calcular o número adicional de vértices necessários (estimativa)
-        int additional_vertices_needed = (int) Math.ceil((double) notDominatedByCurrentSet.size() / k_max);
+        // Calcular o número adicional de vértices necessários
+        int minVerticesNeeded = (int) Math.ceil((double) notDominatedByCurrentSet.size() / k);
         
-        return costSoFar + additional_vertices_needed;
+        return currentSetSize + minVerticesNeeded;
     }
 
     public int solveBranchAndBound(Set<Integer> currentInSet, Set<Integer> currentOutSet, Set<Integer> undecidedVertices){
@@ -837,7 +832,7 @@ class GUI extends JFrame {
                                 System.out.println(sb.toString());
 
                                 JOptionPane.showMessageDialog(ProblemSolverDialog.this,
-                                        "A Menor Cobertura de Vértices possui " + res + " vértices.");
+                                        "O Menor Conjunto Dominante possui " + res + " vértices.");
                             } catch (Exception ex) {
                                 JOptionPane.showMessageDialog(ProblemSolverDialog.this,
                                         "Erro na execução: " + ex.getMessage(),

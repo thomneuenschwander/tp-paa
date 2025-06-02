@@ -43,10 +43,10 @@ class MaxCycle {
         this.C.clear();
 
         Set<Integer> P = new LinkedHashSet<>(); // Caminho atual, mantendo ordem de visita
-        P.add(s); // Começa pelo vértice raiz
+        P.add(s);
         bruteForce(P, s, s);
 
-        return C; // Retorna o maior ciclo encontrado
+        return C;
     }
 
     // Função recursiva que explora todos os caminhos possíveis para achar ciclos maiores
@@ -209,7 +209,7 @@ class MaxCycle {
                 v = u;
             }
         }
-        return C; // Retorna o maior ciclo encontrado nas tentativas
+        return C;
     }
 
     // Verifica se vértice raiz tem grau suficiente para iniciar busca
@@ -232,15 +232,16 @@ class MaxCycle {
 }
 
 class MDS {
-    private final AdjacencyList<Integer> graph;
-    public Set<Integer> minDominatingSet;
-    private int upperBound;
+    private final AdjacencyList<Integer> graph; // Grafo para o cálculo do conjunto dominante mínimo
+    public Set<Integer> minDominatingSet; // Menor conjunto dominante encontrado até o momento
+    private int upperBound; // Limite superior para poda no algoritmo branch and bound
 
     public MDS(AdjacencyList<Integer> graph) {
         this.graph = graph;
         this.minDominatingSet = new HashSet<>();
     }
 
+    // Método de força bruta que testa todos os subconjuntos de vértices para encontrar o menor conjunto dominante
     public List<Integer> bruteForceApproach(AdjacencyList<Integer> graph) {
         Set<Integer> allVertices = graph.V();
         int numVertices = allVertices.size();
@@ -251,15 +252,17 @@ class MDS {
 
         System.out.println("Grafo possui " + numVertices + " vértices");
 
-        long maxSubsets = 1L << numVertices;
+        long maxSubsets = 1L << numVertices; // Calcula 2^n subconjuntos possíveis
         for (long mask = 0; mask < maxSubsets; mask++) {
             List<Integer> currentSet = new ArrayList<>();
             for (int i = 0; i < numVertices; i++) {
+                // Verifica se o bit i está ativo no subconjunto atual
                 if ((mask & (1L << i)) != 0) {
                     currentSet.add(vertexList.get(i));
                 }
             }
 
+            // Verifica se o subconjunto atual é menor que o melhor até agora e se é conjunto dominante válido
             if (currentSet.size() < minSizeFound && isValidDominatingSet(currentSet, graph)) {
                 minSizeFound = currentSet.size();
                 bestSolution = new ArrayList<>(currentSet);
@@ -267,6 +270,7 @@ class MDS {
             }
         }
 
+        // Caso não encontre nenhum conjunto dominante, retorna lista vazia
         if (bestSolution == null) {
             System.out.println("Nenhum conjunto dominante encontrado, retornando lista vazia");
             return new ArrayList<>();
@@ -276,28 +280,34 @@ class MDS {
         return bestSolution;
     }
 
+    // Verifica se o conjunto fornecido domina o grafo, ou seja, cada vértice está ou no conjunto ou tem vizinho no conjunto
     public boolean isValidDominatingSet(List<Integer> subset, AdjacencyList<Integer> graph) {
         Set<Integer> coveredVertices = new HashSet<>(subset);
 
         for (Integer vertex : graph.V()) {
+            // Se o vértice ainda não está coberto
             if (!coveredVertices.contains(vertex)) {
                 boolean hasNeighborInSet = false;
+                // Verifica se algum vizinho do vértice está no conjunto dominante
                 for (Integer neighbor : graph.neighbors(vertex)) {
                     if (subset.contains(neighbor)) {
                         hasNeighborInSet = true;
                         break;
                     }
                 }
-                if (!hasNeighborInSet) return false;
+                if (!hasNeighborInSet) return false; // Não é conjunto dominante se algum vértice não estiver coberto
 
-                coveredVertices.add(vertex);
+                coveredVertices.add(vertex); // Marca vértice como coberto
             }
         }
         return true;
     }
 
+    // Método principal do branch and bound para conjunto dominante mínimo
     public int branchAndBoundApproach(Set<Integer> currentInSet, Set<Integer> currentOutSet, Set<Integer> undecidedVertices) {
+        // Verifica se conjunto atual domina todo o grafo
         if (checkFullyDominated(currentInSet)) {
+            // Atualiza solução ótima se for menor que o melhor atual
             if (currentInSet.size() < this.upperBound) {
                 this.upperBound = currentInSet.size();
                 this.minDominatingSet = new HashSet<>(currentInSet);
@@ -306,15 +316,18 @@ class MDS {
             return currentInSet.size();
         }
 
+        // Caso não tenha mais vértices para decidir e ainda não domine o grafo, abandona ramo
         if (undecidedVertices.isEmpty()) {
             return upperBound;
         }
 
+        // Calcula limite inferior para decidir se continua explorando o ramo
         int lowerBound = lowerBound(currentInSet, currentOutSet, undecidedVertices);
         if (lowerBound >= this.upperBound) {
             return upperBound;
         }
 
+        // Escolha do próximo vértice a incluir ou excluir: aquele que cobre maior número de vértices ainda não dominados
         int nextVertex = -1;
         int maxCoverage = -1;
 
@@ -325,6 +338,7 @@ class MDS {
             }
         }
 
+        // Avalia cada vértice indeciso para decidir próximo passo
         for (int candidate : undecidedVertices) {
             Set<Integer> closedNeighbors = this.graph.closedNeighbors(candidate);
             int coverageCount = 0;
@@ -339,6 +353,7 @@ class MDS {
             }
         }
 
+        // Divide o problema em dois ramos: incluir e não incluir o vértice escolhido
         Set<Integer> remainingUndecided = new HashSet<>(undecidedVertices);
         remainingUndecided.remove(nextVertex);
 
@@ -350,9 +365,11 @@ class MDS {
         outSetBranch.add(nextVertex);
         int branchOutResult = branchAndBoundApproach(currentInSet, outSetBranch, remainingUndecided);
 
+        // Retorna o melhor resultado entre os dois ramos
         return Math.min(branchInResult, branchOutResult);
     }
 
+    // Verifica se vértice está dominado pelo conjunto atual (ele mesmo ou vizinhos)
     private boolean isVertexDominated(int vertex, Set<Integer> currentInSet) {
         if (currentInSet.contains(vertex)) return true;
         for (int neighbor : this.graph.neighbors(vertex)) {
@@ -361,6 +378,7 @@ class MDS {
         return false;
     }
 
+    // Confirma se todo o grafo está dominado pelo conjunto atual
     private boolean checkFullyDominated(Set<Integer> currentInSet) {
         for (int vertex : this.graph.V()) {
             if (!isVertexDominated(vertex, currentInSet)) return false;
@@ -368,6 +386,7 @@ class MDS {
         return true;
     }
 
+    // Calcula limite inferior para podar ramos que não podem melhorar solução atual
     private int lowerBound(Set<Integer> currentInSet, Set<Integer> currentOutSet, Set<Integer> undecidedVertices) {
         int currentSize = currentInSet.size();
 
@@ -378,6 +397,7 @@ class MDS {
             }
         }
 
+        // Verifica se algum vértice não dominado está no conjunto excluído
         for (int v : notDominated) {
             if (currentOutSet.contains(v)) {
                 boolean canBeCovered = false;
@@ -391,6 +411,7 @@ class MDS {
             }
         }
 
+        // Calcula a máxima cobertura de qualquer vértice indeciso sobre vértices não dominados
         int maxCoverage = 0;
         for (int v : undecidedVertices) {
             Set<Integer> closedNeighbors = graph.closedNeighbors(v);
@@ -404,17 +425,20 @@ class MDS {
 
         if (maxCoverage == 0) return Integer.MAX_VALUE;
 
+        // Estima quantos vértices adicionais são necessários para cobrir os não dominados
         int minVerticesNeeded = (int) Math.ceil((double) notDominated.size() / maxCoverage);
         return currentSize + minVerticesNeeded;
     }
 
+    // Inicializa as variáveis para rodar o Branch and Bound
     public List<Integer> solveBranchAndBound(Set<Integer> currentInSet, Set<Integer> currentOutSet, Set<Integer> undecidedVertices) {
-        this.upperBound = this.graph.V().size() + 1;
+        this.upperBound = this.graph.V().size() + 1; // Valor inicial alto para upperBound
         this.minDominatingSet = new HashSet<>();
         branchAndBoundApproach(currentInSet, currentOutSet, undecidedVertices);
         return new ArrayList<>(this.minDominatingSet);
     }
 
+    // Heurística iterated greedy: tenta melhorar solução inicial removendo e readicionando vértices
     public List<Integer> iteratedGreedyApproach(AdjacencyList<Integer> graph, int maxIterations, int removalSize) {
         Random random = new Random();
 
@@ -422,6 +446,7 @@ class MDS {
         List<List<Integer>> edges = graph.getEdges();
         Set<List<Integer>> uncoveredEdges = new HashSet<>(edges);
 
+        // Construção inicial: seleciona vértices até cobrir todas as arestas
         while (!uncoveredEdges.isEmpty()) {
             Map<Integer, Integer> coverageCount = new HashMap<>();
             for (List<Integer> edge : uncoveredEdges) {
@@ -430,6 +455,7 @@ class MDS {
                 coverageCount.put(v, coverageCount.getOrDefault(v, 0) + 1);
             }
 
+            // Escolhe vértice que cobre mais arestas descobertas
             int bestVertex = coverageCount.entrySet().stream()
                     .max(Map.Entry.comparingByValue())
                     .get()
@@ -441,13 +467,16 @@ class MDS {
 
         List<Integer> bestSolution = new ArrayList<>(solution);
 
+        // Fase iterativa: destrói e reconstrói a solução para tentar melhorá-la
         for (int iteration = 0; iteration < maxIterations; iteration++) {
+            // Remove vértices aleatoriamente (fase destruição)
             List<Integer> partialSolution = new ArrayList<>(solution);
             for (int i = 0; i < removalSize && !partialSolution.isEmpty(); i++) {
                 int indexToRemove = random.nextInt(partialSolution.size());
                 partialSolution.remove(indexToRemove);
             }
 
+            // Reconstrói solução para cobrir todas as arestas restantes
             Set<Integer> rebuiltSolution = new HashSet<>(partialSolution);
             Set<List<Integer>> uncovered = new HashSet<>();
             for (List<Integer> edge : edges) {
@@ -456,6 +485,7 @@ class MDS {
                 }
             }
 
+            // Adiciona vértices para cobrir todas as arestas descobertas
             while (!uncovered.isEmpty()) {
                 Map<Integer, Integer> coverageCount = new HashMap<>();
                 for (List<Integer> edge : uncovered) {
@@ -474,6 +504,8 @@ class MDS {
             }
 
             solution = rebuiltSolution;
+
+            // Atualiza melhor solução se a reconstruída for melhor
             if (solution.size() < bestSolution.size()) {
                 bestSolution = new ArrayList<>(solution);
             }
@@ -485,20 +517,23 @@ class MDS {
 }
 
 class AdjacencyList<T> {
-    private final Map<T, Set<T>> adjacency;
-    private final boolean useEdgeList;
-    private List<List<T>> edges;
-    private int numEdges;
+    private final Map<T, Set<T>> adjacency; // Mapa que armazena os vizinhos de cada vértice
+    private final boolean useEdgeList; // Flag para controle se lista de arestas será mantida
+    private List<List<T>> edges; // Lista explícita de arestas
+    private int numEdges; // Contador de número de arestas
 
+    // Retorna o número atual de arestas
     public int getNumEdges() {
         return numEdges;
     }
 
+    // Construtor padrão sem uso de lista de arestas
     public AdjacencyList() {
         this.adjacency = new HashMap<>();
         this.useEdgeList = false;
     }
 
+    // Construtor que permite ativar lista de arestas
     public AdjacencyList(boolean useEdgeList) {
         this.useEdgeList = useEdgeList;
         this.adjacency = new HashMap<>();
@@ -506,20 +541,24 @@ class AdjacencyList<T> {
         this.numEdges = 0;
     }
 
+    // Retorna conjunto de vizinhos diretos de um vértice, vazio se vértice não existe
     public Set<T> neighbors(T vertex) {
         return adjacency.getOrDefault(vertex, Collections.emptySet());
     }
 
+    // Retorna conjunto de vizinhos + o próprio vértice (fechamento)
     public Set<T> closedNeighbors(T vertex) {
         Set<T> closed = new HashSet<>(neighbors(vertex));
         closed.add(vertex);
         return closed;
     }
 
+    // Retorna conjunto de todos os vértices do grafo
     public Set<T> V() {
         return adjacency.keySet();
     }
 
+    // Adiciona uma aresta entre v e u, criando os vértices se necessário
     public boolean addEdge(T v, T u) {
         adjacency.putIfAbsent(v, new HashSet<>());
         adjacency.putIfAbsent(u, new HashSet<>());
@@ -527,18 +566,21 @@ class AdjacencyList<T> {
         boolean addedV = adjacency.get(v).add(u);
         boolean addedU = adjacency.get(u).add(v);
 
+        // Se uso de lista explícita de arestas estiver ativado, adiciona a aresta nela
         if (useEdgeList) {
             edges.add(List.of(v, u));
             numEdges++;
         }
 
-        return addedV || addedU;
+        return addedV || addedU; // Retorna true se alguma aresta foi efetivamente adicionada
     }
 
+    // Retorna o grau (número de vizinhos) de um vértice
     public int degree(T vertex) {
         return neighbors(vertex).size();
     }
 
+    // Clona o grafo atual criando uma cópia independente da estrutura de adjacência
     @Override
     public AdjacencyList<T> clone() {
         AdjacencyList<T> newGraph = new AdjacencyList<>();
@@ -549,11 +591,13 @@ class AdjacencyList<T> {
         return newGraph;
     }
 
+    // Retorna a lista explícita de arestas (se ativada), ou lança exceção
     public List<List<T>> getEdges() {
         if (useEdgeList) return edges;
         throw new UnsupportedOperationException("Edge list is not enabled.");
     }
 
+    // Remove um vértice do grafo, removendo também suas arestas incidentes
     public boolean removeVertex(T vertex) {
         if (!adjacency.containsKey(vertex)) {
             System.out.println("Vértice " + vertex + " não encontrado.");
@@ -565,15 +609,16 @@ class AdjacencyList<T> {
             for (T neighbor : neighborsOfVertex) {
                 if (adjacency.containsKey(neighbor)) {
                     adjacency.get(neighbor).remove(vertex);
-                    numEdges--;
+                    numEdges--; // Atualiza contador de arestas
                 }
             }
         }
 
-        adjacency.remove(vertex);
+        adjacency.remove(vertex); // Remove o vértice do mapa
         return true;
     }
 
+    // Remove múltiplos vértices; retorna false se alguma remoção falhar
     public boolean removeMultipleVertex(Set<T> vertices) {
         for (T vertex : vertices) {
             if (!removeVertex(vertex)) {
@@ -583,6 +628,7 @@ class AdjacencyList<T> {
         return true;
     }
 
+    // Imprime o grafo no console mostrando cada vértice e seus vizinhos
     public void print() {
         for (Map.Entry<T, Set<T>> entry : adjacency.entrySet()) {
             System.out.print(entry.getKey() + ": ");
@@ -594,28 +640,31 @@ class AdjacencyList<T> {
     }
 }
 
-record Cordinates(int x, int y) {}
+record Cordinates(int x, int y) {}  // Representa coordenadas (x, y)
 
 record Station(int id, String name, Cordinates position) {
+    // Busca uma estação pelo nome na lista fornecida
     static Optional<Station> findByName(List<Station> stations, String name) {
         return stations.stream().filter(s -> s.name.equals(name)).findFirst();
     }
 }
 
-record Line(String s1, String s2, String name, Color color) {}
+record Line(String s1, String s2, String name, Color color) {}  // Representa uma linha entre duas estações com nome e cor
 
 class GUI extends JFrame {
-    static final int FRAME_WIDTH = 800;
-    static final int FRAME_HEIGHT = 600;
+    static final int FRAME_WIDTH = 800; // Largura da janela
+    static final int FRAME_HEIGHT = 600; // Altura da janela
 
+    // Expressões regulares para ler arquivos
     static final Pattern STATION_LINE_REGEX = Pattern.compile("\"([^\"]+)\"\\s+(\\d+)\\s+(\\d+)");
     static final Pattern LINE_LINE_HEADER_REGEX = Pattern.compile("(\\S+)\\s+(\\S+)\\s+(\\d+)");
     static final Pattern LINE_LINE_BODY_REGEX = Pattern.compile("\"([^\"]+)\"\\s+\"([^\"]+)\"");
 
-    Set<Integer> highlightedVertices = new HashSet<>();
-    Set<List<Integer>> highlightedEdges = new HashSet<>();
-    AdjacencyList<Integer> graphForHighlighting;
+    Set<Integer> highlightedVertices = new HashSet<>(); // Vértices destacados (ex: caminho encontrado)
+    Set<List<Integer>> highlightedEdges = new HashSet<>(); // Arestas destacadas no grafo
+    AdjacencyList<Integer> graphForHighlighting; // Grafo para destaque visual
 
+    // Mapa de nomes para cores das linhas do metrô
     static final Map<String, Color> colorMap = Map.ofEntries(
             Map.entry("azul", Color.BLUE),
             Map.entry("vermelha", Color.RED),
@@ -630,32 +679,35 @@ class GUI extends JFrame {
             Map.entry("verde-musgo", new Color(85, 107, 47))
     );
 
-    JPanel mainPanel;
-    List<Station> stations = new ArrayList<>();
-    List<Line> lines = new ArrayList<>();
+    JPanel mainPanel; // Painel principal que exibirá o grafo
+    List<Station> stations = new ArrayList<>(); // Lista das estações carregadas
+    List<Line> lines = new ArrayList<>(); // Lista das linhas carregadas
 
     public GUI() {
-        setTitle("Passe de Metro de Paris - Solver");
-        setSize(FRAME_WIDTH, FRAME_HEIGHT);
-        setDefaultCloseOperation(EXIT_ON_CLOSE);
-        setLayout(new BorderLayout());
+        setTitle("Passe de Metro de Paris - Solver"); // Define título da janela
+        setSize(FRAME_WIDTH, FRAME_HEIGHT); // Define tamanho da janela
+        setDefaultCloseOperation(EXIT_ON_CLOSE); // Fecha app quando janela fechada
+        setLayout(new BorderLayout()); // Layout principal da janela
 
-        mainPanel = new JPanel(new BorderLayout());
-        add(mainPanel, BorderLayout.CENTER);
+        mainPanel = new JPanel(new BorderLayout()); // Inicializa painel para conteúdo principal
+        add(mainPanel, BorderLayout.CENTER); // Adiciona painel ao centro da janela
 
-        JMenuBar menuBar = new JMenuBar();
+        JMenuBar menuBar = new JMenuBar(); // Cria barra de menus
 
+        // Menu para carregamento de arquivos
         JMenu fileMenu = new JMenu("Ler Arquivos");
         JMenuItem openStations = new JMenuItem("Ler Estações do Metro");
         JMenuItem openLines = new JMenuItem("Ler Linhas do Metro");
         JMenuItem exitItem = new JMenuItem("Sair");
 
+        // Adiciona itens ao menu arquivos
         fileMenu.add(openStations);
         fileMenu.add(openLines);
         fileMenu.addSeparator();
         fileMenu.add(exitItem);
         menuBar.add(fileMenu);
 
+        // Menu para resoluções do problema 1
         JMenu problem1Menu = new JMenu("Problema 1");
         JMenuItem p1BruteForce = new JMenuItem("Força Bruta");
         JMenuItem p1BranchAndBound = new JMenuItem("Branch and Bound");
@@ -668,6 +720,7 @@ class GUI extends JFrame {
         problem1Menu.add(p1RandomHeuristic);
         menuBar.add(problem1Menu);
 
+        // Menu para resoluções do problema 2
         JMenu problem2Menu = new JMenu("Problema 2");
         JMenuItem p2BruteForce = new JMenuItem("Força Bruta");
         JMenuItem p2BranchAndBound = new JMenuItem("Branch and Bound");
@@ -678,18 +731,20 @@ class GUI extends JFrame {
         problem2Menu.add(p2IteratedGreedy);
         menuBar.add(problem2Menu);
 
-        setJMenuBar(menuBar);
+        setJMenuBar(menuBar); // Define barra de menus da janela
 
+        // Ações para carregar arquivo de estações
         openStations.addActionListener(e -> {
             JFileChooser chooser = new JFileChooser();
-            chooser.setCurrentDirectory(new File("."));
-            chooser.setFileFilter(new FileFilterImpl("_stations.txt"));
+            chooser.setCurrentDirectory(new File(".")); // Diretório atual
+            chooser.setFileFilter(new FileFilterImpl("_stations.txt")); // Filtra arquivos
             if (chooser.showOpenDialog(this) == JFileChooser.APPROVE_OPTION) {
-                stations = readStationFile(chooser.getSelectedFile().getAbsolutePath());
-                JOptionPane.showMessageDialog(this, stations.size() + " estações carregadas");
+                stations = readStationFile(chooser.getSelectedFile().getAbsolutePath()); // Lê arquivo
+                JOptionPane.showMessageDialog(this, stations.size() + " estações carregadas"); // Mensagem sucesso
             }
         });
 
+        // Ações para carregar arquivo de linhas
         openLines.addActionListener(e -> {
             JFileChooser chooser = new JFileChooser();
             chooser.setCurrentDirectory(new File("."));
@@ -698,31 +753,34 @@ class GUI extends JFrame {
                 lines = readLineFile(chooser.getSelectedFile().getAbsolutePath());
                 JOptionPane.showMessageDialog(this, lines.size() + " linhas carregadas");
 
-                GraphPanel graphPanel = new GraphPanel(stations, lines);
-                JScrollPane scrollPane = new JScrollPane(graphPanel);
-                scrollPane.getVerticalScrollBar().setUnitIncrement(16);
+                GraphPanel graphPanel = new GraphPanel(stations, lines); // Cria painel do grafo
+                JScrollPane scrollPane = new JScrollPane(graphPanel); // Painel com scroll para o grafo
+                scrollPane.getVerticalScrollBar().setUnitIncrement(16); // Ajusta scroll vertical
 
-                mainPanel.removeAll();
-                mainPanel.add(scrollPane, BorderLayout.CENTER);
-                mainPanel.revalidate();
-                mainPanel.repaint();
+                mainPanel.removeAll(); // Limpa conteúdo anterior
+                mainPanel.add(scrollPane, BorderLayout.CENTER); // Adiciona grafo ao painel principal
+                mainPanel.revalidate(); // Atualiza layout
+                mainPanel.repaint(); // Repinta tela
             }
         });
 
-        exitItem.addActionListener(e -> System.exit(0));
+        exitItem.addActionListener(e -> System.exit(0)); // Sai do programa
 
-        p1BruteForce.addActionListener(e -> new ProblemSolverDialog(this, 1, ((JMenuItem) e.getSource()).getText()));
-        p1BranchAndBound.addActionListener(e -> new ProblemSolverDialog(this, 1, ((JMenuItem) e.getSource()).getText()));
-        p1GreedyHeuristic.addActionListener(e -> new ProblemSolverDialog(this, 1, ((JMenuItem) e.getSource()).getText()));
-        p1RandomHeuristic.addActionListener(e -> new ProblemSolverDialog(this, 1, ((JMenuItem) e.getSource()).getText()));
+        // Ações dos botões do problema 1, abre diálogo de solução
+        p1BruteForce.addActionListener(e -> new ProblemSolverDialog(this, 1, p1BruteForce.getText()));
+        p1BranchAndBound.addActionListener(e -> new ProblemSolverDialog(this, 1, p1BranchAndBound.getText()));
+        p1GreedyHeuristic.addActionListener(e -> new ProblemSolverDialog(this, 1, p1GreedyHeuristic.getText()));
+        p1RandomHeuristic.addActionListener(e -> new ProblemSolverDialog(this, 1, p1RandomHeuristic.getText()));
 
-        p2BruteForce.addActionListener(e -> new ProblemSolverDialog(this, 2, ((JMenuItem) e.getSource()).getText()));
-        p2BranchAndBound.addActionListener(e -> new ProblemSolverDialog(this, 2, ((JMenuItem) e.getSource()).getText()));
-        p2IteratedGreedy.addActionListener(e -> new ProblemSolverDialog(this, 2, ((JMenuItem) e.getSource()).getText()));
+        // Ações dos botões do problema 2, abre diálogo de solução
+        p2BruteForce.addActionListener(e -> new ProblemSolverDialog(this, 2, p2BruteForce.getText()));
+        p2BranchAndBound.addActionListener(e -> new ProblemSolverDialog(this, 2, p2BranchAndBound.getText()));
+        p2IteratedGreedy.addActionListener(e -> new ProblemSolverDialog(this, 2, p2IteratedGreedy.getText()));
 
-        setVisible(true);
+        setVisible(true); // Exibe a janela
     }
 
+    // Mapeia id da estação para seu nome para facilitar exibição
     private Map<Integer, String> buildStationNameMap() {
         Map<Integer, String> stationNameMap = new HashMap<>();
         for (Station s : stations) {
@@ -731,6 +789,7 @@ class GUI extends JFrame {
         return stationNameMap;
     }
 
+    // Diálogo para entrada e execução das soluções dos problemas
     class ProblemSolverDialog extends JDialog {
         static final int DIALOG_INIT_WIDTH = 480;
         static final int DIALOG_INIT_HEIGHT = 360;
@@ -754,6 +813,7 @@ class GUI extends JFrame {
             String context;
             String goal;
 
+            // Contextualização e objetivo para cada problema
             switch (problem) {
                 case 1 -> {
                     context = "Determinar o número máximo de estações que um turista poderá visitar com um só passe, saindo e retornando de uma determinada estação.";
@@ -804,7 +864,7 @@ class GUI extends JFrame {
             stationInput.setMaximumSize(new Dimension(Integer.MAX_VALUE, 30));
             content.add(Box.createVerticalStrut(10));
 
-            if (problem == 1) {
+            if (problem == 1) { // Apenas problema 1 pede estação raiz
                 content.add(stationLabel);
                 content.add(stationInput);
             }
@@ -814,7 +874,9 @@ class GUI extends JFrame {
 
             add(content, BorderLayout.CENTER);
 
+            // Quando botão executar for clicado
             runButton.addActionListener(e -> {
+                // Verifica se arquivos foram carregados
                 if (stations.isEmpty() || lines.isEmpty()) {
                     JOptionPane.showMessageDialog(this,
                             "É preciso carregar as entradas de estações e de linhas do metro.",
@@ -839,6 +901,7 @@ class GUI extends JFrame {
                     SwingWorker<List<Integer>, Void> worker = new SwingWorker<>() {
                         @Override
                         protected List<Integer> doInBackground() {
+                            // Executa algoritmo escolhido em background para não travar UI
                             return switch (approach) {
                                 case "Força Bruta" -> maxCycle.bruteForceApproach(rootId);
                                 case "Branch and Bound" -> maxCycle.branchAndBoundApproach(rootId);
@@ -852,12 +915,11 @@ class GUI extends JFrame {
                         protected void done() {
                             try {
                                 List<Integer> resultPath = get();
-
                                 Map<Integer, String> stationNameMap = buildStationNameMap();
 
                                 StringBuilder sb = new StringBuilder("Caminho fechado: ");
                                 resultPath.forEach(id -> sb.append(stationNameMap.get(id)).append(" -> "));
-                                sb.setLength(sb.length() - 4);
+                                sb.setLength(sb.length() - 4); // Remove último " -> "
                                 System.out.println(sb);
 
                                 int cycleSize = maxCycle.getMax();
@@ -866,17 +928,16 @@ class GUI extends JFrame {
                                 highlightedEdges.clear();
 
                                 if (!resultPath.isEmpty()) {
-                                    highlightedVertices.add(resultPath.get(0));
-
+                                    highlightedVertices.add(resultPath.get(0)); // Destaca vértice raiz
                                     for (int i = 0; i < resultPath.size() - 1; i++) {
                                         int v1 = resultPath.get(i);
                                         int v2 = resultPath.get(i + 1);
                                         List<Integer> edge = v1 < v2 ? List.of(v1, v2) : List.of(v2, v1);
-                                        highlightedEdges.add(edge);
+                                        highlightedEdges.add(edge); // Destaca as arestas do caminho
                                     }
                                 }
 
-                                mainPanel.repaint();
+                                mainPanel.repaint(); // Atualiza visualização
 
                                 JOptionPane.showMessageDialog(ProblemSolverDialog.this,
                                         "O caminho fechado de maior cardinalidade possui " + cycleSize + " vértices.");
@@ -897,6 +958,7 @@ class GUI extends JFrame {
                     SwingWorker<List<Integer>, Void> worker = new SwingWorker<>() {
                         @Override
                         protected List<Integer> doInBackground() {
+                            // Executa algoritmo escolhido em background para problema 2
                             return switch (approach) {
                                 case "Força Bruta" -> mds.bruteForceApproach(graph);
                                 case "Branch and Bound" -> mds.solveBranchAndBound(new HashSet<>(), new HashSet<>(), new HashSet<>(graph.V()));
@@ -913,13 +975,13 @@ class GUI extends JFrame {
 
                                 highlightedVertices.clear();
                                 highlightedEdges.clear();
-                                highlightedVertices.addAll(resultSet);
+                                highlightedVertices.addAll(resultSet); // Destaca o conjunto dominante
 
                                 mainPanel.repaint();
 
                                 StringBuilder sb = new StringBuilder("MDS: ");
                                 resultSet.forEach(id -> sb.append(stationNameMap.get(id)).append(" -> "));
-                                sb.setLength(sb.length() - 4);
+                                sb.setLength(sb.length() - 4); // Remove último " -> "
                                 System.out.println(sb);
 
                                 JOptionPane.showMessageDialog(ProblemSolverDialog.this,
@@ -938,6 +1000,7 @@ class GUI extends JFrame {
         }
     }
 
+    // Gera grafo simples a partir das linhas e estações carregadas
     AdjacencyList<Integer> generateSimpleAdjacencyList(boolean useEdgeList) {
         AdjacencyList<Integer> graph = new AdjacencyList<>(useEdgeList);
         for (Line edge : lines) {
@@ -957,6 +1020,7 @@ class GUI extends JFrame {
         return graph;
     }
 
+    // Lê arquivo de estações e converte para lista de Station
     List<Station> readStationFile(String filename) {
         List<Station> stationsList = new LinkedList<>();
         int id = 0;
@@ -976,6 +1040,7 @@ class GUI extends JFrame {
         return stationsList;
     }
 
+    // Lê arquivo de linhas e converte para lista de Line
     List<Line> readLineFile(String filename) {
         List<Line> linesList = new LinkedList<>();
         try (BufferedReader br = new BufferedReader(new FileReader(filename))) {
@@ -1003,6 +1068,7 @@ class GUI extends JFrame {
         return linesList;
     }
 
+    // Filtro para o JFileChooser baseado no sufixo
     class FileFilterImpl extends FileFilter {
         private final String suffix;
 
@@ -1021,14 +1087,14 @@ class GUI extends JFrame {
         }
     }
 
+    // Painel customizado para desenhar o grafo
     class GraphPanel extends JPanel {
-        static final Dimension GRAPH_SIZE = new Dimension(1600, 1600);
+        static final Dimension GRAPH_SIZE = new Dimension(1600, 1600); // Tamanho virtual do grafo
 
-        static final int NODE_DIAMETER = 12;
-        static final Function<Integer, Integer> CENTER_NODE_POS = pos -> pos - NODE_DIAMETER / 2;
-        static final Color NODE_COLOR = Color.BLACK;
-
-        static final BasicStroke EDGE_STROKE = new BasicStroke(4);
+        static final int NODE_DIAMETER = 12; // Diâmetro do nó
+        static final Function<Integer, Integer> CENTER_NODE_POS = pos -> pos - NODE_DIAMETER / 2; // Centraliza nó
+        static final Color NODE_COLOR = Color.BLACK; // Cor padrão dos nós
+        static final BasicStroke EDGE_STROKE = new BasicStroke(4); // Espessura padrão das arestas
 
         List<Station> stations;
         List<Line> lines;
@@ -1036,16 +1102,17 @@ class GUI extends JFrame {
         GraphPanel(List<Station> stations, List<Line> lines) {
             this.stations = stations;
             this.lines = lines;
-            setBackground(Color.WHITE);
+            setBackground(Color.WHITE); // Fundo branco
         }
 
         @Override
         protected void paintComponent(Graphics g) {
             super.paintComponent(g);
             Graphics2D g2d = (Graphics2D) g;
-            g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-            lines.forEach(l -> paintEdge(g2d, l));
-            stations.forEach(s -> paintNode(g2d, s));
+            g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON); // Antialias
+
+            lines.forEach(l -> paintEdge(g2d, l)); // Desenha arestas
+            stations.forEach(s -> paintNode(g2d, s)); // Desenha nós
         }
 
         void paintEdge(Graphics2D g, Line edge) {
@@ -1061,10 +1128,10 @@ class GUI extends JFrame {
 
                 if (highlightedEdges.contains(edgeVertices)) {
                     g.setColor(Color.RED);
-                    g.setStroke(new BasicStroke(8));
+                    g.setStroke(new BasicStroke(8)); // Destaque linha grossa vermelha
                 } else {
                     g.setColor(edge.color());
-                    g.setStroke(EDGE_STROKE);
+                    g.setStroke(EDGE_STROKE); // Linha padrão
                 }
 
                 g.drawLine(pos1.x(), pos1.y(), pos2.x(), pos2.y());
@@ -1078,27 +1145,27 @@ class GUI extends JFrame {
             if (highlightedVertices.contains(station.id())) {
                 int radius = NODE_DIAMETER + 8;
                 g.setColor(Color.RED);
-                g.fillOval(cx - 4, cy - 4, radius, radius);
+                g.fillOval(cx - 4, cy - 4, radius, radius); // Nó destacado maior e vermelho
                 g.setColor(Color.BLACK);
                 g.setStroke(new BasicStroke(3));
-                g.drawOval(cx - 4, cy - 4, radius, radius);
+                g.drawOval(cx - 4, cy - 4, radius, radius); // Contorno preto
             } else {
                 g.setColor(NODE_COLOR);
-                g.fillOval(cx, cy, NODE_DIAMETER, NODE_DIAMETER);
+                g.fillOval(cx, cy, NODE_DIAMETER, NODE_DIAMETER); // Nó padrão
             }
-            paintNodeLabel(g, cx, cy, station.name());
+            paintNodeLabel(g, cx, cy, station.name()); // Label estação
         }
 
         void paintNodeLabel(Graphics2D g, int cx, int cy, String label) {
             int textWidth = label.length();
             int textX = cx - textWidth;
             int textY = cy + 2 * NODE_DIAMETER;
-            g.drawString(label, textX, textY);
+            g.drawString(label, textX, textY); // Desenha o nome da estação próximo ao nó
         }
 
         @Override
         public Dimension getPreferredSize() {
-            return GRAPH_SIZE;
+            return GRAPH_SIZE; // Tamanho preferido do painel (pode dar scroll)
         }
     }
 }

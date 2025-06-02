@@ -27,179 +27,196 @@ public class Main {
 }
 
 class MaxCycle {
-    private int max;
-    private List<Integer> path;
-    private final AdjacencyList<Integer> graph;
+    private int max; // Guarda o tamanho do maior ciclo encontrado
+    private List<Integer> C; // Armazena o caminho do maior ciclo encontrado
+    private final AdjacencyList<Integer> graph; // Grafo para busca
 
+    // Construtor recebe o grafo onde será feita a busca
     public MaxCycle(AdjacencyList<Integer> graph) {
         this.graph = graph;
-        this.path = new ArrayList<>();
+        this.C = new ArrayList<>();
     }
 
-    public List<Integer> bruteForceApproach(int root) {
+    // Inicia busca exaustiva a partir do vértice s
+    public List<Integer> bruteForceApproach(int s) {
         this.max = 0;
-        this.path.clear();
+        this.C.clear();
 
-        Set<Integer> visited = new LinkedHashSet<>();
-        visited.add(root);
-        bruteForce(visited, root, root);
+        Set<Integer> P = new LinkedHashSet<>(); // Caminho atual, mantendo ordem de visita
+        P.add(s); // Começa pelo vértice raiz
+        bruteForce(P, s, s);
 
-        return path;
+        return C; // Retorna o maior ciclo encontrado
     }
 
-    private void bruteForce(Set<Integer> visited, int root, int current) {
-        for (int neighbor : graph.neighbors(current)) {
-            if (neighbor == root && visited.size() >= 3 && visited.size() > max) {
-                max = visited.size();
-                path.clear();
-                path.addAll(visited);
-                path.add(root);
+    // Função recursiva que explora todos os caminhos possíveis para achar ciclos maiores
+    private void bruteForce(Set<Integer> P, int s, int v) {
+        for (int u : graph.neighbors(v)) { // Para cada vizinho de v
+            if (u == s && P.size() >= 3 && P.size() > max) {
+                // Ciclo fechado maior que o atual max encontrado
+                max = P.size();
+                C.clear();
+                C.addAll(P);
+                C.add(s); // Fecha o ciclo adicionando o vértice raiz
                 continue;
             }
-            if (!visited.contains(neighbor)) {
-                visited.add(neighbor);
-                bruteForce(visited, root, neighbor);
-                visited.remove(neighbor);
+            if (!P.contains(u)) {
+                // Continua expandindo o caminho se o vizinho ainda não foi visitado
+                P.add(u);
+                bruteForce(P, s, u);
+                P.remove(u); // Backtracking: remove o vizinho após explorar
             }
         }
     }
 
-    public List<Integer> branchAndBoundApproach(int root) {
+    // Busca otimizada com poda (branch and bound)
+    public List<Integer> branchAndBoundApproach(int s) {
         this.max = 0;
-        this.path.clear();
+        this.C.clear();
 
-        Set<Integer> visited = new LinkedHashSet<>();
-        visited.add(root);
-        branchAndBound(visited, root, root);
+        Set<Integer> P = new LinkedHashSet<>();
+        P.add(s);
+        branchAndBound(P, s, s);
 
-        return path;
+        return C;
     }
 
-    private void branchAndBound(Set<Integer> visited, int root, int current) {
-        for (int neighbor : graph.neighbors(current)) {
-            if (neighbor == root && visited.size() >= 3 && visited.size() > max) {
-                max = visited.size();
-                path.clear();
-                path.addAll(visited);
-                path.add(root);
+    // Recursão com poda: só expande se ainda existir chance de achar ciclo maior
+    private void branchAndBound(Set<Integer> P, int s, int v) {
+        for (int u : graph.neighbors(v)) {
+            if (u == s && P.size() >= 3 && P.size() > max) {
+                max = P.size();
+                C.clear();
+                C.addAll(P);
+                C.add(s);
                 continue;
             }
-            if (!visited.contains(neighbor)) {
-                int upperBound = graph.V().size();
-                if (upperBound > max && graph.degree(neighbor) > 1) {
-                    visited.add(neighbor);
-                    branchAndBound(visited, root, neighbor);
-                    visited.remove(neighbor);
+            if (!P.contains(u)) {
+                int upperBound = graph.V().size(); // Tamanho máximo possível do ciclo
+                // Poda: só expande se max ainda pode ser superado e grau do vizinho > 1
+                if (upperBound > max && graph.degree(u) > 1) {
+                    P.add(u);
+                    branchAndBound(P, s, u);
+                    P.remove(u);
                 }
             }
         }
     }
 
-    public List<Integer> parcialGreedyHeuristicApproach(int root) {
+    // Heurística gulosa parcial: tenta construir um ciclo grande, priorizando vizinhos de maior grau
+    public List<Integer> parcialGreedyHeuristicApproach(int s) {
         this.max = 0;
-        this.path.clear();
+        this.C.clear();
 
-        if (isRootInvalid(root)) return path;
+        if (isRootInvalid(s))
+            return C; // Raiz inválida: não tenta busca
 
-        boolean usedBackup = false;
-        int backupVertex = root;
+        boolean usedBackup = false; // Marca se já tentou rota alternativa
+        int backupVertex = s; // Guarda vértice para backup
 
-        Set<Integer> visited = new LinkedHashSet<>();
-        int current = root;
-        visited.add(current);
-        path.add(current);
+        Set<Integer> P = new LinkedHashSet<>();
+        int v = s;
+        P.add(v);
+        C.add(v);
 
-        List<Integer> candidateNeighbors = new ArrayList<>();
-
+        List<Integer> vOptions = new ArrayList<>();
         while (true) {
-            candidateNeighbors.clear();
+            vOptions.clear();
 
-            for (int neighbor : graph.neighbors(current)) {
-                if (neighbor == root && path.size() >= 3) {
-                    max = path.size();
-                    path.add(neighbor);
-                    return path;
-                } else if (!visited.contains(neighbor) && graph.degree(neighbor) > 1) {
-                    candidateNeighbors.add(neighbor);
-                }
+            // Reúne vizinhos válidos para tentar expandir caminho
+            for (int u : graph.neighbors(v)) {
+                if (u == s && C.size() >= 3) {
+                    max = C.size();
+                    C.add(u);
+                    return C; // Ciclo fechado, retorna solução
+                } else if (!P.contains(u) && graph.degree(u) > 1)
+                    vOptions.add(u);
             }
 
-            if (candidateNeighbors.isEmpty()) {
-                if (usedBackup) break;
+            if (vOptions.isEmpty()) { // Sem opções para expandir
+                if (usedBackup)
+                    break; // Já tentou backup, finaliza
                 usedBackup = true;
-                int backupIndex = path.indexOf(backupVertex);
-                if (backupIndex != -1) {
-                    List<Integer> tempPath = new ArrayList<>(path.subList(0, backupIndex + 1));
-                    path.clear();
-                    path.addAll(tempPath);
-                    current = backupVertex;
+                int backupIdx = C.indexOf(backupVertex);
+                if (backupIdx != -1) {
+                    // Retorna para backup para tentar outro caminho
+                    List<Integer> temp = new ArrayList<>(C.subList(0, backupIdx + 1));
+                    C.clear();
+                    C.addAll(temp);
+                    v = backupVertex;
                     continue;
-                } else break;
+                } else
+                    break;
             }
+            // Atualiza backup para tentar melhor rota
+            if (!usedBackup && graph.degree(v) > graph.degree(backupVertex))
+                backupVertex = v;
 
-            if (!usedBackup && graph.degree(current) > graph.degree(backupVertex)) {
-                backupVertex = current;
-            }
-
-            int nextVertex = candidateNeighbors.stream()
-                    .max(Comparator.comparingInt(graph::degree))
-                    .orElseThrow();
-
-            visited.add(nextVertex);
-            path.add(nextVertex);
-            current = nextVertex;
+            // Escolhe próximo vértice com maior grau
+            int u = vOptions.stream().max(Comparator.comparingInt(graph::degree)).orElseThrow();
+            P.add(u);
+            C.add(u);
+            v = u;
         }
         return Collections.emptyList();
     }
 
-    public List<Integer> randomizedHeuristicApproach(int root) {
-        this.max = 0;
-        this.path.clear();
+    // Heurística estocástica: realiza várias tentativas aleatórias para achar ciclos grandes
+    public List<Integer> randomizedHeuristicApproach(int s) {
+        this.max = 0; 
+        this.C.clear(); 
 
-        final int maxIterations = graph.V().size() / 2;
+        final int maxIterations = graph.V().size() / 2; // Número de tentativas aleatórias
 
-        if (isRootInvalid(root)) return path;
+        if (isRootInvalid(s)) // Verifica se o vértice raiz é válido para iniciar busca
+            return C;
 
         Random random = new Random();
 
         for (int i = 0; i < maxIterations; i++) {
-            Set<Integer> visited = new LinkedHashSet<>();
-            int current = root;
-            visited.add(current);
+            Set<Integer> P = new LinkedHashSet<>(); // Caminho atual, sem repetição, com ordem
+            int v = s;
+            P.add(v);
             boolean foundCycle = false;
 
             while (true) {
-                List<Integer> candidateNeighbors = new ArrayList<>();
-                for (int neighbor : graph.neighbors(current)) {
-                    if (neighbor == root && visited.size() >= 3) {
-                        if (visited.size() > max) {
-                            max = visited.size();
-                            path.clear();
-                            path.addAll(visited);
-                            path.add(root);
+                List<Integer> vOptions = new ArrayList<>();
+                for (int u : graph.neighbors(v)) {
+                    // Se possível fechar ciclo com raiz e ciclo tiver tamanho mínimo
+                    if (u == s && P.size() >= 3) {
+                        // Atualiza o maior ciclo encontrado
+                        if (P.size() > max) {
+                            max = P.size();
+                            C.clear();
+                            C.addAll(P);
+                            C.add(s); // Fecha o ciclo
                         }
                         foundCycle = true;
                         break;
-                    } else if (!visited.contains(neighbor) && graph.degree(neighbor) > 1) {
-                        candidateNeighbors.add(neighbor);
+                    } else if (!P.contains(u) && graph.degree(u) > 1) {
+                        // Coleta vizinhos ainda não visitados com grau > 1
+                        vOptions.add(u);
                     }
                 }
+                // Sai se ciclo foi fechado ou não há para onde ir
+                if (foundCycle || vOptions.isEmpty())
+                    break;
 
-                if (foundCycle || candidateNeighbors.isEmpty()) break;
-
-                int randomIndex = random.nextInt(candidateNeighbors.size());
-                int nextVertex = candidateNeighbors.get(randomIndex);
-
-                visited.add(nextVertex);
-                current = nextVertex;
+                // Escolhe vizinho aleatório para continuar caminho
+                int randomIndex = random.nextInt(vOptions.size());
+                int u = vOptions.get(randomIndex);
+                P.add(u);
+                v = u;
             }
         }
-        return path;
+        return C; // Retorna o maior ciclo encontrado nas tentativas
     }
 
-    private boolean isRootInvalid(int root) {
-        if (!graph.V().contains(root) || graph.degree(root) <= 1) return true;
-        long count = graph.neighbors(root).stream()
+    // Verifica se vértice raiz tem grau suficiente para iniciar busca
+    private boolean isRootInvalid(int s) {
+        if (!graph.V().contains(s) || graph.degree(s) <= 1)
+            return true;
+        long count = graph.neighbors(s).stream()
                 .filter(neighbor -> graph.degree(neighbor) > 2)
                 .count();
         return count < 2;
@@ -210,7 +227,7 @@ class MaxCycle {
     }
 
     public List<Integer> getMaxCyclePath() {
-        return path;
+        return C;
     }
 }
 

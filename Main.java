@@ -640,9 +640,9 @@ class AdjacencyList<T> {
     }
 }
 
-record Cordinates(int x, int y) {}  // Representa coordenadas (x, y)
+record Coordinates(int x, int y) {}  // Representa coordenadas (x, y)
 
-record Station(int id, String name, Cordinates position) {
+record Station(int id, String name, Coordinates position) {
     // Busca uma estação pelo nome na lista fornecida
     static Optional<Station> findByName(List<Station> stations, String name) {
         return stations.stream().filter(s -> s.name.equals(name)).findFirst();
@@ -1032,7 +1032,7 @@ class GUI extends JFrame {
                     throw new IllegalStateException("Linha de estações de metro inválida -> " + line);
                 }
                 stationsList.add(new Station(id++, matcher.group(1),
-                        new Cordinates(Integer.parseInt(matcher.group(2)), Integer.parseInt(matcher.group(3)))));
+                        new Coordinates(Integer.parseInt(matcher.group(2)), Integer.parseInt(matcher.group(3)))));
             }
         } catch (Exception e) {
             System.err.println("Erro ao ler as estações do metro =(\n" + e.getMessage());
@@ -1119,8 +1119,8 @@ class GUI extends JFrame {
             Optional<Station> s1Opt = Station.findByName(stations, edge.s1());
             Optional<Station> s2Opt = Station.findByName(stations, edge.s2());
             if (s1Opt.isPresent() && s2Opt.isPresent()) {
-                Cordinates pos1 = s1Opt.get().position();
-                Cordinates pos2 = s2Opt.get().position();
+                Coordinates pos1 = s1Opt.get().position();
+                Coordinates pos2 = s2Opt.get().position();
 
                 int v1 = s1Opt.get().id();
                 int v2 = s2Opt.get().id();

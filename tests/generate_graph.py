@@ -1,9 +1,9 @@
 import random
 
 # ====== CONFIGURAÇÃO ======
-n = 15               # número de vértices
-density = 0.3        # densidade do grafo (entre 0 e 1)
-output_file = "./tests/graph_random.txt"
+n = 25               # número de vértices
+density = 0.2       # densidade do grafo (entre 0 e 1)
+output_file = "./tests/graph_test_n25.txt"
 # ==========================
 
 if not (0 < density <= 1):

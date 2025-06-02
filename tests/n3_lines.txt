@@ -1,4 +1,4 @@
-linha1 marrom 13
+linha1 Amarela 13
 "La Défense" "Porte Maillot"
 "Porte Maillot" "Charles de Gaulle Étoile"
 "Charles de Gaulle Étoile" "Franklin D. Roosevelt"
@@ -12,7 +12,7 @@ linha1 marrom 13
 "Gare de Lyon" "Reuilly-Diderot"
 "Reuilly-Diderot" "Nation"
 "Nation" "Château de Vincennes"
-linha2 marrom 11
+linha2 Azul 11
 "Nation" "Père Lachaise"
 "Père Lachaise" "Belleville"
 "Belleville" "Jaurès"
@@ -36,7 +36,7 @@ linha3 marrom 11
 "Saint-Lazare" "Villiers"
 "Villiers" "Pereire"
 "Pereire" "Pont de Levallois Bécon"
-linha4 marrom 14
+linha4 Rosa-Choque 14
 "Porte d'Orléans" "Denfert Rochereau"
 "Denfert Rochereau" "Raspail"
 "Raspail" "Montparnasse Bienvenüe"
@@ -51,7 +51,7 @@ linha4 marrom 14
 "Gare du Nord" "Barbès Rochechouart"
 "Barbès Rochechouart" "Marcadet Poissonniers"
 "Marcadet Poissonniers" "Porte de Clignancourt"
-linha5 marrom 10
+linha5 Laranja 10
 "Bobigny Pablo Picasso" "Jaurès"
 "Jaurès" "Stalingrad"
 "Stalingrad" "Gare du Nord"
@@ -62,7 +62,7 @@ linha5 marrom 10
 "Bastille" "Quai de la Rapée"
 "Quai de la Rapée" "Gare d'Austerlitz"
 "Gare d'Austerlitz" "Place d'Italie"
-linha6 marrom 11
+linha6 Verde 11
 "Nation" "Daumesnil"
 "Daumesnil" "Bercy"
 "Bercy" "Place d'Italie"
@@ -74,7 +74,7 @@ linha6 marrom 11
 "La Motte Picquet Grenelle" "Bir-Hakeim"
 "Bir-Hakeim" "Trocadéro"
 "Trocadéro" "Charles de Gaulle Étoile"
-linha8 marrom 12
+linha8 Lilás 12
 "Balard" "La Motte Picquet Grenelle"
 "La Motte Picquet Grenelle" "Invalides"
 "Invalides" "Concorde"

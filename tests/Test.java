@@ -7,12 +7,12 @@ import java.util.*;
 
 public class Test {
     public static void main(String[] args) {
-        final int ROOT = 12;
-        final String FILENAME = "./tests/graph_random.txt";
+        final int ROOT = 1;
+        final String FILENAME = "./tests/graph_test_n5.txt";
 
         runPythonCycleScript(FILENAME, ROOT);
 
-        AdjacencyList<Integer> graph = AdjacencyList.fromFile(FILENAME);
+        AdjacencyList<Integer> graph = AdjacencyList.fromFile(FILENAME, true);
 
         System.out.println("Graph:\n" + graph);
         System.out.println("ROOT: " + ROOT);
@@ -52,152 +52,198 @@ public class Test {
 }
 
 class MaxCycle {
-    private int max;
-    private List<Integer> path;
-    private AdjacencyList<Integer> G;
+    private int max; // Guarda o tamanho do maior ciclo encontrado
+    private List<Integer> C; // Armazena o caminho do maior ciclo encontrado
+    private final AdjacencyList<Integer> graph; // Grafo para busca
 
-    public MaxCycle(AdjacencyList<Integer> G) {
-        this.G = G;
-        this.path = new ArrayList<>();
+    // Construtor recebe o grafo onde será feita a busca
+    public MaxCycle(AdjacencyList<Integer> graph) {
+        this.graph = graph;
+        this.C = new ArrayList<>();
     }
 
-    public List<Integer> bruteForceApproach(int root) {
-        this.max = 0; 
-        this.path.clear();
+    // Inicia busca exaustiva a partir do vértice s
+    public List<Integer> bruteForceApproach(int s) {
+        this.max = 0;
+        this.C.clear();
 
-        Set<Integer> P = new LinkedHashSet<>();
-        P.add(root);
-        bruteForce(P, root, root);
+        Set<Integer> P = new LinkedHashSet<>(); // Caminho atual, mantendo ordem de visita
+        P.add(s);
+        bruteForce(P, s, s);
 
-        return path;
+        return C;
     }
 
-    private void bruteForce(Set<Integer> P, int root, int v) {
-        for (int u : G.neighbors(v)) {
-            if (u == root && P.size() >= 3 && P.size() > max) {
+    // Função recursiva que explora todos os caminhos possíveis para achar ciclos maiores
+    private void bruteForce(Set<Integer> P, int s, int v) {
+        for (int u : graph.neighbors(v)) { // Para cada vizinho de v
+            if (u == s && P.size() >= 3 && P.size() > max) {
+                // Ciclo fechado maior que o atual max encontrado
                 max = P.size();
-                path.clear();
-                path.addAll(P);
-                path.add(root);
+                C.clear();
+                C.addAll(P);
+                C.add(s); // Fecha o ciclo adicionando o vértice raiz
                 continue;
             }
             if (!P.contains(u)) {
+                // Continua expandindo o caminho se o vizinho ainda não foi visitado
                 P.add(u);
-                bruteForce(P, root, u);
-                P.remove(u);
+                bruteForce(P, s, u);
+                P.remove(u); // Backtracking: remove o vizinho após explorar
             }
         }
     }
 
-    public List<Integer> parcialGreedyHeuristicApproach(int root) {
-        this.max = 0; 
-        this.path.clear();
-
-        if (isRootInvalid(root))
-            return path;
-
-        boolean usedBackup = false;
-        int backupVertex = root;
+    // Busca otimizada com poda (branch and bound)
+    public List<Integer> branchAndBoundApproach(int s) {
+        this.max = 0;
+        this.C.clear();
 
         Set<Integer> P = new LinkedHashSet<>();
+        P.add(s);
+        branchAndBound(P, s, s);
 
-        int v = root;
+        return C;
+    }
+
+    // Recursão com poda: só expande se ainda existir chance de achar ciclo maior
+    private void branchAndBound(Set<Integer> P, int s, int v) {
+        for (int u : graph.neighbors(v)) {
+            if (u == s && P.size() >= 3 && P.size() > max) {
+                max = P.size();
+                C.clear();
+                C.addAll(P);
+                C.add(s);
+                continue;
+            }
+            if (!P.contains(u)) {
+                int upperBound = graph.V().size(); // Tamanho máximo possível do ciclo
+                // Poda: só expande se max ainda pode ser superado e grau do vizinho > 1
+                if (upperBound > max && graph.degree(u) > 1) {
+                    P.add(u);
+                    branchAndBound(P, s, u);
+                    P.remove(u);
+                }
+            }
+        }
+    }
+
+    // Heurística gulosa parcial: tenta construir um ciclo grande, priorizando vizinhos de maior grau
+    public List<Integer> parcialGreedyHeuristicApproach(int s) {
+        this.max = 0;
+        this.C.clear();
+
+        if (isRootInvalid(s))
+            return C; // Raiz inválida: não tenta busca
+
+        boolean usedBackup = false; // Marca se já tentou rota alternativa
+        int backupVertex = s; // Guarda vértice para backup
+
+        Set<Integer> P = new LinkedHashSet<>();
+        int v = s;
         P.add(v);
-        path.add(v);
+        C.add(v);
 
         List<Integer> vOptions = new ArrayList<>();
         while (true) {
             vOptions.clear();
 
-            for (int u : G.neighbors(v)) {
-                if (u == root && path.size() >= 3) {
-                    max = path.size();
-                    path.add(u);
-                    return path;
-                } else if (!P.contains(u) && G.degree(u) > 1)
+            // Reúne vizinhos válidos para tentar expandir caminho
+            for (int u : graph.neighbors(v)) {
+                if (u == s && C.size() >= 3) {
+                    max = C.size();
+                    C.add(u);
+                    return C; // Ciclo fechado, retorna solução
+                } else if (!P.contains(u) && graph.degree(u) > 1)
                     vOptions.add(u);
             }
 
-            if (vOptions.isEmpty()) {
+            if (vOptions.isEmpty()) { // Sem opções para expandir
                 if (usedBackup)
+                    break; // Já tentou backup, finaliza
+                usedBackup = true;
+                int backupIdx = C.indexOf(backupVertex);
+                if (backupIdx != -1) {
+                    // Retorna para backup para tentar outro caminho
+                    List<Integer> temp = new ArrayList<>(C.subList(0, backupIdx + 1));
+                    C.clear();
+                    C.addAll(temp);
+                    v = backupVertex;
+                    continue;
+                } else
                     break;
-                else {
-                    usedBackup = true;
-                    int backupIdx = path.indexOf(backupVertex);
-                    if (backupIdx != -1) {
-                        List<Integer> temp = new ArrayList<>(path.subList(0, backupIdx + 1));
-                        path.clear();
-                        path.addAll(temp);
-                        v = backupVertex;
-                        continue;
-                    } else
-                        break;
-                }
             }
-            if (!usedBackup && G.degree(v) > G.degree(backupVertex))
+            // Atualiza backup para tentar melhor rota
+            if (!usedBackup && graph.degree(v) > graph.degree(backupVertex))
                 backupVertex = v;
 
-            int u = vOptions.stream().max(Comparator.comparingInt(G::degree)).orElseThrow();
+            // Escolhe próximo vértice com maior grau
+            int u = vOptions.stream().max(Comparator.comparingInt(graph::degree)).orElseThrow();
             P.add(u);
-            path.add(u);
+            C.add(u);
             v = u;
         }
-
         return Collections.emptyList();
     }
 
-    public List<Integer> randomizedHeuristicApproach(int root) {
+    // Heurística estocástica: realiza várias tentativas aleatórias para achar ciclos grandes
+    public List<Integer> randomizedHeuristicApproach(int s) {
         this.max = 0; 
-        this.path.clear();
+        this.C.clear(); 
 
-        final int K = G.V().size() / 2;
+        final int maxIterations = graph.V().size() / 2; // Número de tentativas aleatórias
 
-        if (isRootInvalid(root))
-            return this.path; 
+        if (isRootInvalid(s)) // Verifica se o vértice raiz é válido para iniciar busca
+            return C;
 
-        Random randomGenerator = new Random(); 
+        Random random = new Random();
 
-        for (int i = 1; i <= K; i++) { 
-            Set<Integer> P = new LinkedHashSet<>(); 
-
-            int v = root;
+        for (int i = 0; i < maxIterations; i++) {
+            Set<Integer> P = new LinkedHashSet<>(); // Caminho atual, sem repetição, com ordem
+            int v = s;
             P.add(v);
-
             boolean foundCycle = false;
 
-            while (true) { 
+            while (true) {
                 List<Integer> vOptions = new ArrayList<>();
-                for (int u : G.neighbors(v)) {
-                    if (u == root && P.size() >= 3) {
-                        if (P.size() > this.max) {
-                            this.max = P.size();
-                            this.path.clear();
-                            this.path.addAll(P);
-                            this.path.add(root); 
+                for (int u : graph.neighbors(v)) {
+                    // Se possível fechar ciclo com raiz e ciclo tiver tamanho mínimo
+                    if (u == s && P.size() >= 3) {
+                        // Atualiza o maior ciclo encontrado
+                        if (P.size() > max) {
+                            max = P.size();
+                            C.clear();
+                            C.addAll(P);
+                            C.add(s); // Fecha o ciclo
                         }
                         foundCycle = true;
-                        break; 
-                    } else if (!P.contains(u) && G.degree(u) > 1) {
+                        break;
+                    } else if (!P.contains(u) && graph.degree(u) > 1) {
+                        // Coleta vizinhos ainda não visitados com grau > 1
                         vOptions.add(u);
                     }
                 }
-                if (foundCycle || vOptions.isEmpty()) 
-                    break; 
-                
-                int randomIndex = randomGenerator.nextInt(vOptions.size());
-                int u = vOptions.get(randomIndex);
+                // Sai se ciclo foi fechado ou não há para onde ir
+                if (foundCycle || vOptions.isEmpty())
+                    break;
 
+                // Escolhe vizinho aleatório para continuar caminho
+                int randomIndex = random.nextInt(vOptions.size());
+                int u = vOptions.get(randomIndex);
                 P.add(u);
                 v = u;
             }
         }
-        return this.path;
+        return C;
     }
 
-    private boolean isRootInvalid(int root) {
-        if (!G.V().contains(root) || G.degree(root) <= 1)
+    // Verifica se vértice raiz tem grau suficiente para iniciar busca
+    private boolean isRootInvalid(int s) {
+        if (!graph.V().contains(s) || graph.degree(s) <= 1)
             return true;
-        long count = G.neighbors(root).stream().filter(neighbor -> G.degree(neighbor) > 2).count();
+        long count = graph.neighbors(s).stream()
+                .filter(neighbor -> graph.degree(neighbor) > 2)
+                .count();
         return count < 2;
     }
 
@@ -206,37 +252,445 @@ class MaxCycle {
     }
 
     public List<Integer> getMaxCyclePath() {
-        return path;
+        return C;
+    }
+}
+class MDS {
+    private final AdjacencyList<Integer> graph; // Grafo para o cálculo do conjunto dominante mínimo
+    public Set<Integer> minDominatingSet; // Menor conjunto dominante encontrado até o momento
+    private int upperBound; // Limite superior para poda no algoritmo branch and bound
+
+    public MDS(AdjacencyList<Integer> graph) {
+        this.graph = graph;
+        this.minDominatingSet = new HashSet<>();
+    }
+
+    // Método de força bruta que testa todos os subconjuntos de vértices para
+    // encontrar o menor conjunto dominante
+    public List<Integer> bruteForceApproach(AdjacencyList<Integer> graph) {
+        Set<Integer> allVertices = graph.V();
+        int numVertices = allVertices.size();
+        List<Integer> vertexList = new ArrayList<>(allVertices);
+
+        List<Integer> bestSolution = null;
+        int minSizeFound = numVertices + 1;
+
+        System.out.println("Grafo possui " + numVertices + " vértices");
+
+        long maxSubsets = 1L << numVertices; // Calcula 2^n subconjuntos possíveis
+        for (long mask = 0; mask < maxSubsets; mask++) {
+            List<Integer> currentSet = new ArrayList<>();
+            for (int i = 0; i < numVertices; i++) {
+                // Verifica se o bit i está ativo no subconjunto atual
+                if ((mask & (1L << i)) != 0) {
+                    currentSet.add(vertexList.get(i));
+                }
+            }
+
+            // Verifica se o subconjunto atual é menor que o melhor até agora e se é
+            // conjunto dominante válido
+            if (currentSet.size() < minSizeFound && isValidDominatingSet(currentSet, graph)) {
+                minSizeFound = currentSet.size();
+                bestSolution = new ArrayList<>(currentSet);
+                System.out
+                        .println("Novo menor conjunto dominante: " + bestSolution + " (tamanho: " + minSizeFound + ")");
+            }
+        }
+
+        // Caso não encontre nenhum conjunto dominante, retorna lista vazia
+        if (bestSolution == null) {
+            System.out.println("Nenhum conjunto dominante encontrado, retornando lista vazia");
+            return new ArrayList<>();
+        }
+
+        System.out.println("Conjunto dominante mínimo final: " + bestSolution + " (tamanho: " + minSizeFound + ")");
+        return bestSolution;
+    }
+
+    // Verifica se o conjunto fornecido domina o grafo, ou seja, cada vértice está
+    // ou no conjunto ou tem vizinho no conjunto
+    public boolean isValidDominatingSet(List<Integer> subset, AdjacencyList<Integer> graph) {
+        Set<Integer> coveredVertices = new HashSet<>(subset);
+
+        for (Integer vertex : graph.V()) {
+            // Se o vértice ainda não está coberto
+            if (!coveredVertices.contains(vertex)) {
+                boolean hasNeighborInSet = false;
+                // Verifica se algum vizinho do vértice está no conjunto dominante
+                for (Integer neighbor : graph.neighbors(vertex)) {
+                    if (subset.contains(neighbor)) {
+                        hasNeighborInSet = true;
+                        break;
+                    }
+                }
+                if (!hasNeighborInSet)
+                    return false; // Não é conjunto dominante se algum vértice não estiver coberto
+
+                coveredVertices.add(vertex); // Marca vértice como coberto
+            }
+        }
+        return true;
+    }
+
+    // Método principal do branch and bound para conjunto dominante mínimo
+    public int branchAndBoundApproach(Set<Integer> currentInSet, Set<Integer> currentOutSet,
+            Set<Integer> undecidedVertices) {
+        // Verifica se conjunto atual domina todo o grafo
+        if (checkFullyDominated(currentInSet)) {
+            // Atualiza solução ótima se for menor que o melhor atual
+            if (currentInSet.size() < this.upperBound) {
+                this.upperBound = currentInSet.size();
+                this.minDominatingSet = new HashSet<>(currentInSet);
+                System.out.println("MDS: " + this.minDominatingSet + ", Size: " + this.upperBound);
+            }
+            return currentInSet.size();
+        }
+
+        // Caso não tenha mais vértices para decidir e ainda não domine o grafo,
+        // abandona ramo
+        if (undecidedVertices.isEmpty()) {
+            return upperBound;
+        }
+
+        // Calcula limite inferior para decidir se continua explorando o ramo
+        int lowerBound = lowerBound(currentInSet, currentOutSet, undecidedVertices);
+        if (lowerBound >= this.upperBound) {
+            return upperBound;
+        }
+
+        // Escolha do próximo vértice a incluir ou excluir: aquele que cobre maior
+        // número de vértices ainda não dominados
+        int nextVertex = -1;
+        int maxCoverage = -1;
+
+        Set<Integer> currentlyUndominated = new HashSet<>();
+        for (int v : this.graph.V()) {
+            if (!isVertexDominated(v, currentInSet)) {
+                currentlyUndominated.add(v);
+            }
+        }
+
+        // Avalia cada vértice indeciso para decidir próximo passo
+        for (int candidate : undecidedVertices) {
+            Set<Integer> closedNeighbors = this.graph.closedNeighbors(candidate);
+            int coverageCount = 0;
+            for (int neighbor : closedNeighbors) {
+                if (currentlyUndominated.contains(neighbor)) {
+                    coverageCount++;
+                }
+            }
+            if (coverageCount > maxCoverage) {
+                maxCoverage = coverageCount;
+                nextVertex = candidate;
+            }
+        }
+
+        // Divide o problema em dois ramos: incluir e não incluir o vértice escolhido
+        Set<Integer> remainingUndecided = new HashSet<>(undecidedVertices);
+        remainingUndecided.remove(nextVertex);
+
+        Set<Integer> inSetBranch = new HashSet<>(currentInSet);
+        inSetBranch.add(nextVertex);
+        int branchInResult = branchAndBoundApproach(inSetBranch, currentOutSet, remainingUndecided);
+
+        Set<Integer> outSetBranch = new HashSet<>(currentOutSet);
+        outSetBranch.add(nextVertex);
+        int branchOutResult = branchAndBoundApproach(currentInSet, outSetBranch, remainingUndecided);
+
+        // Retorna o melhor resultado entre os dois ramos
+        return Math.min(branchInResult, branchOutResult);
+    }
+
+    // Verifica se vértice está dominado pelo conjunto atual (ele mesmo ou vizinhos)
+    private boolean isVertexDominated(int vertex, Set<Integer> currentInSet) {
+        if (currentInSet.contains(vertex))
+            return true;
+        for (int neighbor : this.graph.neighbors(vertex)) {
+            if (currentInSet.contains(neighbor))
+                return true;
+        }
+        return false;
+    }
+
+    // Confirma se todo o grafo está dominado pelo conjunto atual
+    private boolean checkFullyDominated(Set<Integer> currentInSet) {
+        for (int vertex : this.graph.V()) {
+            if (!isVertexDominated(vertex, currentInSet))
+                return false;
+        }
+        return true;
+    }
+
+    // Calcula limite inferior para podar ramos que não podem melhorar solução atual
+    private int lowerBound(Set<Integer> currentInSet, Set<Integer> currentOutSet, Set<Integer> undecidedVertices) {
+        int currentSize = currentInSet.size();
+
+        Set<Integer> notDominated = new HashSet<>();
+        for (int v : this.graph.V()) {
+            if (!isVertexDominated(v, currentInSet)) {
+                notDominated.add(v);
+            }
+        }
+
+        // Verifica se algum vértice não dominado está no conjunto excluído
+        for (int v : notDominated) {
+            if (currentOutSet.contains(v)) {
+                boolean canBeCovered = false;
+                for (int neighbor : this.graph.neighbors(v)) {
+                    if (undecidedVertices.contains(neighbor)) {
+                        canBeCovered = true;
+                        break;
+                    }
+                }
+                if (!canBeCovered)
+                    return Integer.MAX_VALUE;
+            }
+        }
+
+        // Calcula a máxima cobertura de qualquer vértice indeciso sobre vértices não
+        // dominados
+        int maxCoverage = 0;
+        for (int v : undecidedVertices) {
+            Set<Integer> closedNeighbors = graph.closedNeighbors(v);
+            Set<Integer> intersection = new HashSet<>(closedNeighbors);
+            intersection.retainAll(notDominated);
+            int coverage = intersection.size();
+            if (coverage > maxCoverage) {
+                maxCoverage = coverage;
+            }
+        }
+
+        if (maxCoverage == 0)
+            return Integer.MAX_VALUE;
+
+        // Estima quantos vértices adicionais são necessários para cobrir os não
+        // dominados
+        int minVerticesNeeded = (int) Math.ceil((double) notDominated.size() / maxCoverage);
+        return currentSize + minVerticesNeeded;
+    }
+
+    // Inicializa as variáveis para rodar o Branch and Bound
+    public List<Integer> solveBranchAndBound(Set<Integer> currentInSet, Set<Integer> currentOutSet,
+            Set<Integer> undecidedVertices) {
+        this.upperBound = this.graph.V().size() + 1; // Valor inicial alto para upperBound
+        this.minDominatingSet = new HashSet<>();
+        branchAndBoundApproach(currentInSet, currentOutSet, undecidedVertices);
+        return new ArrayList<>(this.minDominatingSet);
+    }
+
+    // Heurística iterated greedy: tenta melhorar solução inicial removendo e
+    // readicionando vértices
+    public List<Integer> iteratedGreedyApproach(AdjacencyList<Integer> graph, int maxIterations, int removalSize) {
+        Random random = new Random();
+
+        Set<Integer> solution = new HashSet<>();
+        List<List<Integer>> edges = graph.getEdges();
+        Set<List<Integer>> uncoveredEdges = new HashSet<>(edges);
+
+        // Construção inicial: seleciona vértices até cobrir todas as arestas
+        while (!uncoveredEdges.isEmpty()) {
+            Map<Integer, Integer> coverageCount = new HashMap<>();
+            for (List<Integer> edge : uncoveredEdges) {
+                int u = edge.get(0), v = edge.get(1);
+                coverageCount.put(u, coverageCount.getOrDefault(u, 0) + 1);
+                coverageCount.put(v, coverageCount.getOrDefault(v, 0) + 1);
+            }
+
+            // Escolhe vértice que cobre mais arestas descobertas
+            int bestVertex = coverageCount.entrySet().stream()
+                    .max(Map.Entry.comparingByValue())
+                    .get()
+                    .getKey();
+
+            solution.add(bestVertex);
+            uncoveredEdges.removeIf(edge -> edge.contains(bestVertex));
+        }
+
+        List<Integer> bestSolution = new ArrayList<>(solution);
+
+        // Fase iterativa: destrói e reconstrói a solução para tentar melhorá-la
+        for (int iteration = 0; iteration < maxIterations; iteration++) {
+            // Remove vértices aleatoriamente (fase destruição)
+            List<Integer> partialSolution = new ArrayList<>(solution);
+            for (int i = 0; i < removalSize && !partialSolution.isEmpty(); i++) {
+                int indexToRemove = random.nextInt(partialSolution.size());
+                partialSolution.remove(indexToRemove);
+            }
+
+            // Reconstrói solução para cobrir todas as arestas restantes
+            Set<Integer> rebuiltSolution = new HashSet<>(partialSolution);
+            Set<List<Integer>> uncovered = new HashSet<>();
+            for (List<Integer> edge : edges) {
+                if (!rebuiltSolution.contains(edge.get(0)) && !rebuiltSolution.contains(edge.get(1))) {
+                    uncovered.add(edge);
+                }
+            }
+
+            // Adiciona vértices para cobrir todas as arestas descobertas
+            while (!uncovered.isEmpty()) {
+                Map<Integer, Integer> coverageCount = new HashMap<>();
+                for (List<Integer> edge : uncovered) {
+                    int u = edge.get(0), v = edge.get(1);
+                    coverageCount.put(u, coverageCount.getOrDefault(u, 0) + 1);
+                    coverageCount.put(v, coverageCount.getOrDefault(v, 0) + 1);
+                }
+
+                int bestVertex = coverageCount.entrySet().stream()
+                        .max(Map.Entry.comparingByValue())
+                        .get()
+                        .getKey();
+
+                rebuiltSolution.add(bestVertex);
+                uncovered.removeIf(edge -> edge.contains(bestVertex));
+            }
+
+            solution = rebuiltSolution;
+
+            // Atualiza melhor solução se a reconstruída for melhor
+            if (solution.size() < bestSolution.size()) {
+                bestSolution = new ArrayList<>(solution);
+            }
+        }
+
+        System.out.println("Melhor solução encontrada: " + bestSolution + " (Tamanho: " + bestSolution.size() + ")");
+        return bestSolution;
     }
 }
 
 class AdjacencyList<T> {
-    private final Map<T, Set<T>> adj = new HashMap<>();
+    private final Map<T, Set<T>> adjacency; // Mapa que armazena os vizinhos de cada vértice
+    private final boolean useEdgeList; // Flag para controle se lista de arestas será mantida
+    private List<List<T>> edges; // Lista explícita de arestas
+    private int numEdges; // Contador de número de arestas
 
-    public Set<T> neighbors(T v) {
-        return adj.getOrDefault(v, Collections.emptySet());
+    // Retorna o número atual de arestas
+    public int getNumEdges() {
+        return numEdges;
     }
 
+    // Construtor padrão sem uso de lista de arestas
+    public AdjacencyList() {
+        this.adjacency = new HashMap<>();
+        this.useEdgeList = false;
+    }
+
+    // Construtor que permite ativar lista de arestas
+    public AdjacencyList(boolean useEdgeList) {
+        this.useEdgeList = useEdgeList;
+        this.adjacency = new HashMap<>();
+        this.edges = new ArrayList<>();
+        this.numEdges = 0;
+    }
+
+    // Retorna conjunto de vizinhos diretos de um vértice, vazio se vértice não existe
+    public Set<T> neighbors(T vertex) {
+        return adjacency.getOrDefault(vertex, Collections.emptySet());
+    }
+
+    // Retorna conjunto de vizinhos + o próprio vértice (fechamento)
+    public Set<T> closedNeighbors(T vertex) {
+        Set<T> closed = new HashSet<>(neighbors(vertex));
+        closed.add(vertex);
+        return closed;
+    }
+
+    // Retorna conjunto de todos os vértices do grafo
     public Set<T> V() {
-        return adj.keySet();
+        return adjacency.keySet();
     }
 
+    // Adiciona uma aresta entre v e u, criando os vértices se necessário
     public boolean addEdge(T v, T u) {
-        if (!adj.containsKey(v))
-            adj.put(v, new HashSet<>());
-        if (!adj.containsKey(u))
-            adj.put(u, new HashSet<>());
-        var a = adj.get(v).add(u);
-        var b = adj.get(u).add(v);
-        return a || b;
+        adjacency.putIfAbsent(v, new HashSet<>());
+        adjacency.putIfAbsent(u, new HashSet<>());
+
+        boolean addedV = adjacency.get(v).add(u);
+        boolean addedU = adjacency.get(u).add(v);
+
+        // Se uso de lista explícita de arestas estiver ativado, adiciona a aresta nela
+        if (useEdgeList) {
+            edges.add(List.of(v, u));
+            numEdges++;
+        }
+
+        return addedV || addedU; // Retorna true se alguma aresta foi efetivamente adicionada
     }
 
-    public int degree(T v) {
-        return neighbors(v).size();
+    // Retorna o grau (número de vizinhos) de um vértice
+    public int degree(T vertex) {
+        return neighbors(vertex).size();
     }
 
-    public static AdjacencyList<Integer> fromFile(String filename) {
-        AdjacencyList<Integer> graph = new AdjacencyList<>();
+    // Clona o grafo atual criando uma cópia independente da estrutura de adjacência
+    @Override
+    public AdjacencyList<T> clone() {
+        AdjacencyList<T> newGraph = new AdjacencyList<>();
+        for (Map.Entry<T, Set<T>> entry : this.adjacency.entrySet()) {
+            newGraph.adjacency.put(entry.getKey(), new HashSet<>(entry.getValue()));
+        }
+        newGraph.numEdges = this.numEdges;
+        return newGraph;
+    }
+
+    // Retorna a lista explícita de arestas (se ativada), ou lança exceção
+    public List<List<T>> getEdges() {
+        if (useEdgeList) return edges;
+        throw new UnsupportedOperationException("Edge list is not enabled.");
+    }
+
+    // Remove um vértice do grafo, removendo também suas arestas incidentes
+    public boolean removeVertex(T vertex) {
+        if (!adjacency.containsKey(vertex)) {
+            System.out.println("Vértice " + vertex + " não encontrado.");
+            return false;
+        }
+
+        Set<T> neighborsOfVertex = adjacency.get(vertex);
+        if (neighborsOfVertex != null) {
+            for (T neighbor : neighborsOfVertex) {
+                if (adjacency.containsKey(neighbor)) {
+                    adjacency.get(neighbor).remove(vertex);
+                    numEdges--; // Atualiza contador de arestas
+                }
+            }
+        }
+
+        adjacency.remove(vertex); // Remove o vértice do mapa
+        return true;
+    }
+
+    // Remove múltiplos vértices; retorna false se alguma remoção falhar
+    public boolean removeMultipleVertex(Set<T> vertices) {
+        for (T vertex : vertices) {
+            if (!removeVertex(vertex)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    // Imprime o grafo no console mostrando cada vértice e seus vizinhos
+    public void print() {
+        for (Map.Entry<T, Set<T>> entry : adjacency.entrySet()) {
+            System.out.print(entry.getKey() + ": ");
+            for (T neighbor : entry.getValue()) {
+                System.out.print(neighbor + " ");
+            }
+            System.out.println();
+        }
+    }
+
+    @Override
+    public String toString() {
+        StringBuilder sb = new StringBuilder();
+        adjacency.keySet().forEach(v -> sb.append(v).append(": ").append(adjacency.get(v)).append("\n"));
+        sb.deleteCharAt(sb.length() - 1);
+        return sb.toString();
+    }
+
+
+    public static AdjacencyList<Integer> fromFile(String filename, boolean useEdgeList) {
+        AdjacencyList<Integer> graph = new AdjacencyList<>(useEdgeList);
 
         try (BufferedReader br = new BufferedReader(new FileReader(filename))) {
             int n = Integer.parseInt(br.readLine());
@@ -258,13 +712,5 @@ class AdjacencyList<T> {
         }
 
         return graph;
-    }
-
-    @Override
-    public String toString() {
-        StringBuilder sb = new StringBuilder();
-        adj.keySet().forEach(v -> sb.append(v).append(": ").append(adj.get(v)).append("\n"));
-        sb.deleteCharAt(sb.length() - 1);
-        return sb.toString();
     }
 }

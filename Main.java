@@ -1,3 +1,14 @@
+/*
+ * Metro de Paris -
+ * 
+ * Alunos: 
+ * 
+ * Eduardo Araújo Valadares Silva
+ * Henrique Resende Lara
+ * Luigi Louback de Oliveira
+ * Thomas Neuenschwander Maciel Baron
+ * 
+ */
 import javax.swing.*;
 import javax.swing.filechooser.FileFilter;
 import java.awt.*;

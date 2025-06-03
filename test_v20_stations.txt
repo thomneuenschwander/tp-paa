@@ -1,0 +1,20 @@
+"Richelieu Drouot" 800 692
+"Porte Dauphine" 252 690
+"République" 1114 720
+"Mairie des Lilas" 1540 542
+"Bastille" 1102 948
+"Chaussée d'Antin La Fayette" 750 688
+"Place d'Italie" 1038 1298
+"Bobigny Pablo Picasso" 1536 334
+"Gare de I'Est" 1062 570
+"Madeleine" 568 784
+"Olympiades" 1170 1344
+"Balard" 342 1344
+"Châtelet" 894 870
+"Franklin D. Roosevelt" 494 778
+"La Motte Picquet Grenelle" 444 1096
+"Opéra" 708 724
+"Villejuif - Louis Aragon" 1028 1524
+"Charles de Gaulle Étoile" 392 678
+"Saint-Lazare" 632 628
+"Nation" 1364 992

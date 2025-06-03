@@ -1,3 +1,4 @@
+
 /*
  * Metro de Paris -
  * 
@@ -42,14 +43,21 @@ class MaxCycle {
         this.maxSize = 0;
         this.maxCyclePath.clear();
 
+        long startTime = System.nanoTime();
+
         Set<Integer> currentPath = new LinkedHashSet<>(); // Caminho atual, mantendo ordem de visita
         currentPath.add(root);
         bruteForceRecursive(currentPath, root, root);
 
+        long endTime = System.nanoTime();
+        long duration = endTime - startTime;
+        System.out.println("Brute Force concluido em " + duration / 1_000_000 + " ms");
+
         return maxCyclePath;
     }
 
-    // Função recursiva que explora todos os caminhos possíveis para achar ciclos maiores
+    // Função recursiva que explora todos os caminhos possíveis para achar ciclos
+    // maiores
     private void bruteForceRecursive(Set<Integer> currentPath, int root, int currentVertex) {
         for (int neighbor : graph.neighbors(currentVertex)) { // Para cada vizinho de currentVertex
             if (neighbor == root && currentPath.size() >= 3 && currentPath.size() > maxSize) {
@@ -74,9 +82,15 @@ class MaxCycle {
         this.maxSize = 0;
         this.maxCyclePath.clear();
 
+        long startTime = System.nanoTime();
+
         Set<Integer> currentPath = new LinkedHashSet<>();
         currentPath.add(root);
         branchAndBoundRecursive(currentPath, root, root);
+
+        long endTime = System.nanoTime();
+        long duration = endTime - startTime;
+        System.out.println("Branch Bound concluido em " + duration / 1_000_000 + " ms");
 
         return maxCyclePath;
     }
@@ -103,10 +117,13 @@ class MaxCycle {
         }
     }
 
-    // Heurística gulosa parcial: tenta construir um ciclo grande, priorizando vizinhos de maior grau
+    // Heurística gulosa parcial: tenta construir um ciclo grande, priorizando
+    // vizinhos de maior grau
     public List<Integer> parcialGreedyHeuristicApproach(int root) {
         this.maxSize = 0;
         this.maxCyclePath.clear();
+
+        long startTime = System.nanoTime();
 
         if (isRootInvalid(root))
             return maxCyclePath; // Raiz inválida: não tenta busca
@@ -158,13 +175,20 @@ class MaxCycle {
             maxCyclePath.add(nextVertex);
             currentVertex = nextVertex;
         }
+        long endTime = System.nanoTime();
+        long duration = endTime - startTime; // Calcula duração da busca
+        System.out.println("Parcial Greedy heuristic em " + duration / 1_000_000 + " ms");
+
         return Collections.emptyList();
     }
 
-    // Heurística estocástica: realiza várias tentativas aleatórias para achar ciclos grandes
+    // Heurística estocástica: realiza várias tentativas aleatórias para achar
+    // ciclos grandes
     public List<Integer> randomizedHeuristicApproach(int root) {
         this.maxSize = 0;
         this.maxCyclePath.clear();
+
+        long startTime = System.nanoTime();
 
         final int maxIterations = graph.V().size() / 2; // Número de tentativas aleatórias
 
@@ -209,6 +233,10 @@ class MaxCycle {
                 currentVertex = nextVertex;
             }
         }
+        long endTime = System.nanoTime();
+        long duration = endTime - startTime; // Calcula duração da busca
+        System.out.println("Heur estocástica concluido em " + duration / 1_000_000 + " ms");
+
         return maxCyclePath;
     }
 
@@ -241,8 +269,12 @@ class MDS {
         this.minDominatingSet = new HashSet<>();
     }
 
-    // Método de força bruta que testa todos os subconjuntos de vértices para encontrar o menor conjunto dominante
+    // Método de força bruta que testa todos os subconjuntos de vértices para
+    // encontrar o menor conjunto dominante
     public List<Integer> bruteForceApproach(AdjacencyList<Integer> graph) {
+
+        long startTime = System.nanoTime(); // Marca início da execução
+
         Set<Integer> allVertices = graph.V();
         int numVertices = allVertices.size();
         List<Integer> vertexList = new ArrayList<>(allVertices);
@@ -262,11 +294,13 @@ class MDS {
                 }
             }
 
-            // Verifica se o subconjunto atual é menor que o melhor até agora e se é conjunto dominante válido
+            // Verifica se o subconjunto atual é menor que o melhor até agora e se é
+            // conjunto dominante válido
             if (currentSet.size() < minSizeFound && isValidDominatingSet(currentSet, graph)) {
                 minSizeFound = currentSet.size();
                 bestSolution = new ArrayList<>(currentSet);
-                System.out.println("Novo menor conjunto dominante: " + bestSolution + " (tamanho: " + minSizeFound + ")");
+                System.out
+                        .println("Novo menor conjunto dominante: " + bestSolution + " (tamanho: " + minSizeFound + ")");
             }
         }
 
@@ -277,10 +311,15 @@ class MDS {
         }
 
         System.out.println("Conjunto dominante mínimo final: " + bestSolution + " (tamanho: " + minSizeFound + ")");
+
+        long endTime = System.nanoTime();
+        long duration = endTime - startTime; // Calcula duração da busca
+        System.out.println("Brute Force concluido em " + duration / 1_000_000 + " ms");
         return bestSolution;
     }
 
-    // Verifica se o conjunto fornecido domina o grafo, ou seja, cada vértice está ou no conjunto ou tem vizinho no conjunto
+    // Verifica se o conjunto fornecido domina o grafo, ou seja, cada vértice está
+    // ou no conjunto ou tem vizinho no conjunto
     public boolean isValidDominatingSet(List<Integer> subset, AdjacencyList<Integer> graph) {
         Set<Integer> coveredVertices = new HashSet<>(subset);
 
@@ -295,7 +334,8 @@ class MDS {
                         break;
                     }
                 }
-                if (!hasNeighborInSet) return false; // Não é conjunto dominante se algum vértice não estiver coberto
+                if (!hasNeighborInSet)
+                    return false; // Não é conjunto dominante se algum vértice não estiver coberto
 
                 coveredVertices.add(vertex); // Marca vértice como coberto
             }
@@ -304,7 +344,9 @@ class MDS {
     }
 
     // Método principal do branch and bound para conjunto dominante mínimo
-    public int branchAndBoundApproach(Set<Integer> currentInSet, Set<Integer> currentOutSet, Set<Integer> undecidedVertices) {
+    public int branchAndBoundApproach(Set<Integer> currentInSet, Set<Integer> currentOutSet,
+            Set<Integer> undecidedVertices) {
+
         // Verifica se conjunto atual domina todo o grafo
         if (checkFullyDominated(currentInSet)) {
             // Atualiza solução ótima se for menor que o melhor atual
@@ -316,7 +358,8 @@ class MDS {
             return currentInSet.size();
         }
 
-        // Caso não tenha mais vértices para decidir e ainda não domine o grafo, abandona ramo
+        // Caso não tenha mais vértices para decidir e ainda não domine o grafo,
+        // abandona ramo
         if (undecidedVertices.isEmpty()) {
             return upperBound;
         }
@@ -327,7 +370,8 @@ class MDS {
             return upperBound;
         }
 
-        // Escolha do próximo vértice a incluir ou excluir: aquele que cobre maior número de vértices ainda não dominados
+        // Escolha do próximo vértice a incluir ou excluir: aquele que cobre maior
+        // número de vértices ainda não dominados
         int nextVertex = -1;
         int maxCoverage = -1;
 
@@ -371,9 +415,11 @@ class MDS {
 
     // Verifica se vértice está dominado pelo conjunto atual (ele mesmo ou vizinhos)
     private boolean isVertexDominated(int vertex, Set<Integer> currentInSet) {
-        if (currentInSet.contains(vertex)) return true;
+        if (currentInSet.contains(vertex))
+            return true;
         for (int neighbor : this.graph.neighbors(vertex)) {
-            if (currentInSet.contains(neighbor)) return true;
+            if (currentInSet.contains(neighbor))
+                return true;
         }
         return false;
     }
@@ -381,7 +427,8 @@ class MDS {
     // Confirma se todo o grafo está dominado pelo conjunto atual
     private boolean checkFullyDominated(Set<Integer> currentInSet) {
         for (int vertex : this.graph.V()) {
-            if (!isVertexDominated(vertex, currentInSet)) return false;
+            if (!isVertexDominated(vertex, currentInSet))
+                return false;
         }
         return true;
     }
@@ -407,11 +454,13 @@ class MDS {
                         break;
                     }
                 }
-                if (!canBeCovered) return Integer.MAX_VALUE;
+                if (!canBeCovered)
+                    return Integer.MAX_VALUE;
             }
         }
 
-        // Calcula a máxima cobertura de qualquer vértice indeciso sobre vértices não dominados
+        // Calcula a máxima cobertura de qualquer vértice indeciso sobre vértices não
+        // dominados
         int maxCoverage = 0;
         for (int v : undecidedVertices) {
             Set<Integer> closedNeighbors = graph.closedNeighbors(v);
@@ -423,23 +472,36 @@ class MDS {
             }
         }
 
-        if (maxCoverage == 0) return Integer.MAX_VALUE;
+        if (maxCoverage == 0)
+            return Integer.MAX_VALUE;
 
-        // Estima quantos vértices adicionais são necessários para cobrir os não dominados
+        // Estima quantos vértices adicionais são necessários para cobrir os não
+        // dominados
         int minVerticesNeeded = (int) Math.ceil((double) notDominated.size() / maxCoverage);
         return currentSize + minVerticesNeeded;
     }
 
     // Inicializa as variáveis para rodar o Branch and Bound
-    public List<Integer> solveBranchAndBound(Set<Integer> currentInSet, Set<Integer> currentOutSet, Set<Integer> undecidedVertices) {
+    public List<Integer> solveBranchAndBound(Set<Integer> currentInSet, Set<Integer> currentOutSet,
+            Set<Integer> undecidedVertices) {
+        long startTime = System.nanoTime(); 
+
         this.upperBound = this.graph.V().size() + 1; // Valor inicial alto para upperBound
         this.minDominatingSet = new HashSet<>();
         branchAndBoundApproach(currentInSet, currentOutSet, undecidedVertices);
+
+        long endTime = System.nanoTime();
+        long duration = endTime - startTime;
+        System.out.println("Branch Bound concluido em " + duration / 1_000_000 + " ms");
+
         return new ArrayList<>(this.minDominatingSet);
     }
 
-    // Heurística iterated greedy: tenta melhorar solução inicial removendo e readicionando vértices
+    // Heurística iterated greedy: tenta melhorar solução inicial removendo e
+    // readicionando vértices
     public List<Integer> iteratedGreedyApproach(AdjacencyList<Integer> graph, int maxIterations, int removalSize) {
+        long startTime = System.nanoTime(); // Marca início da execução
+
         Random random = new Random();
 
         Set<Integer> solution = new HashSet<>();
@@ -512,6 +574,11 @@ class MDS {
         }
 
         System.out.println("Melhor solução encontrada: " + bestSolution + " (Tamanho: " + bestSolution.size() + ")");
+
+        long endTime = System.nanoTime();
+        long duration = endTime - startTime; // Calcula duração da busca
+        System.out.println("Heur concluido em " + duration / 1_000_000 + " ms");
+        
         return bestSolution;
     }
 }
@@ -536,7 +603,8 @@ class AdjacencyList<T> {
         this.numEdges = 0;
     }
 
-    // Retorna conjunto de vizinhos diretos de um vértice, vazio se vértice não existe
+    // Retorna conjunto de vizinhos diretos de um vértice, vazio se vértice não
+    // existe
     public Set<T> neighbors(T vertex) {
         return adjacency.getOrDefault(vertex, Collections.emptySet());
     }
@@ -577,7 +645,8 @@ class AdjacencyList<T> {
 
     // Retorna a lista explícita de arestas (se ativada), ou lança exceção
     public List<List<T>> getEdges() {
-        if (useEdgeList) return edges;
+        if (useEdgeList)
+            return edges;
         throw new UnsupportedOperationException("Edge list is not enabled.");
     }
 
@@ -614,7 +683,8 @@ class AdjacencyList<T> {
     }
 }
 
-record Coordinates(int x, int y) {}  // Representa coordenadas (x, y)
+record Coordinates(int x, int y) {
+} // Representa coordenadas (x, y)
 
 record Station(int id, String name, Coordinates position) {
     // Busca uma estação pelo nome na lista fornecida
@@ -623,7 +693,8 @@ record Station(int id, String name, Coordinates position) {
     }
 }
 
-record Line(String s1, String s2, String name, Color color) {}  // Representa uma linha entre duas estações com nome e cor
+record Line(String s1, String s2, String name, Color color) {
+} // Representa uma linha entre duas estações com nome e cor
 
 class GUI extends JFrame {
     static final int FRAME_WIDTH = 800; // Largura da janela
@@ -650,8 +721,7 @@ class GUI extends JFrame {
             Map.entry("lilás", new Color(200, 162, 200)),
             Map.entry("rosa", new Color(255, 105, 180)),
             Map.entry("rosa-choque", new Color(255, 20, 147)),
-            Map.entry("verde-musgo", new Color(85, 107, 47))
-    );
+            Map.entry("verde-musgo", new Color(85, 107, 47)));
 
     JPanel mainPanel; // Painel principal que exibirá o grafo
     List<Station> stations = new ArrayList<>(); // Lista das estações carregadas
@@ -935,9 +1005,12 @@ class GUI extends JFrame {
                             // Executa algoritmo escolhido em background para problema 2
                             return switch (approach) {
                                 case "Força Bruta" -> mds.bruteForceApproach(graph);
-                                case "Branch and Bound" -> mds.solveBranchAndBound(new HashSet<>(), new HashSet<>(), new HashSet<>(graph.V()));
-                                case "Heurístico (Iterated Greedy Algorithm)" -> mds.iteratedGreedyApproach(graph, 100, 3);
-                                default -> throw new IllegalStateException("\"" + approach + "\"" + " não suportada para o Problema 2.");
+                                case "Branch and Bound" ->
+                                    mds.solveBranchAndBound(new HashSet<>(), new HashSet<>(), new HashSet<>(graph.V()));
+                                case "Heurístico (Iterated Greedy Algorithm)" ->
+                                    mds.iteratedGreedyApproach(graph, 100, 3);
+                                default -> throw new IllegalStateException(
+                                        "\"" + approach + "\"" + " não suportada para o Problema 2.");
                             };
                         }
 

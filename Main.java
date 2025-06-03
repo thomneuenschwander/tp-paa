@@ -522,11 +522,6 @@ class AdjacencyList<T> {
     private List<List<T>> edges; // Lista explícita de arestas
     private int numEdges; // Contador de número de arestas
 
-    // Retorna o número atual de arestas
-    public int getNumEdges() {
-        return numEdges;
-    }
-
     // Construtor padrão sem uso de lista de arestas
     public AdjacencyList() {
         this.adjacency = new HashMap<>();
@@ -580,17 +575,6 @@ class AdjacencyList<T> {
         return neighbors(vertex).size();
     }
 
-    // Clona o grafo atual criando uma cópia independente da estrutura de adjacência
-    @Override
-    public AdjacencyList<T> clone() {
-        AdjacencyList<T> newGraph = new AdjacencyList<>();
-        for (Map.Entry<T, Set<T>> entry : this.adjacency.entrySet()) {
-            newGraph.adjacency.put(entry.getKey(), new HashSet<>(entry.getValue()));
-        }
-        newGraph.numEdges = this.numEdges;
-        return newGraph;
-    }
-
     // Retorna a lista explícita de arestas (se ativada), ou lança exceção
     public List<List<T>> getEdges() {
         if (useEdgeList) return edges;
@@ -615,16 +599,6 @@ class AdjacencyList<T> {
         }
 
         adjacency.remove(vertex); // Remove o vértice do mapa
-        return true;
-    }
-
-    // Remove múltiplos vértices; retorna false se alguma remoção falhar
-    public boolean removeMultipleVertex(Set<T> vertices) {
-        for (T vertex : vertices) {
-            if (!removeVertex(vertex)) {
-                return false;
-            }
-        }
         return true;
     }
 

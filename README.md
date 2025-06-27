@@ -36,7 +36,7 @@ Onde instalar guichês de venda de passes para garantir máxima conveniência co
 
 **Definição Formal:** Seja $G(V,E)$ um grafo não direcionado, encontrar $$
 
-## Técnicas de Projetos de Algoritimos Abordadas
+## Técnicas de Projeto de Algoritmos Abordadas
 
 Para cada desafio, foram implementadas e comparadas três soluções distintas, representando diferentes trade-offs entre tempo de execução e otimalidade do resultado.
 

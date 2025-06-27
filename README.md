@@ -36,9 +36,9 @@ Onde instalar guichês de venda de passes para garantir máxima conveniência co
 
 **Definição Formal:** Seja $G(V,E)$ um grafo não direcionado, encontrar $$
 
-## Abordagens de Solução Implementadas
+## Técnicas de Projetos de Algoritimos Abordadas
 
-Para cada desafio, foram implementadas e comparadas três abordagens distintas, representando diferentes trade-offs entre tempo de execução e otimalidade da solução.
+Para cada desafio, foram implementadas e comparadas três soluções distintas, representando diferentes trade-offs entre tempo de execução e otimalidade do resultado.
 
 * **Força Bruta:** Uma busca exaustiva que testa todas as possibilidades. Garante a solução ótima, mas possui um custo computacional proibitivo para grafos grandes.
 

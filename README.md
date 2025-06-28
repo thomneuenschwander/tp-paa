@@ -24,18 +24,6 @@ $$S^* = \arg\min_{S \subseteq V} \{|S| \mid \forall v \in V, (N[v] \cap S) \neq 
 
 Onde $N[v] = \{v\} \cup \{u \in V \mid (v,u) \in E\}$ é a vizinhança fechada do vértice $v$. O valor a ser retornado é a cardinalidade $|S^*|$.
 
-### Problema 1: O Tour Perfeito (Ciclo Simples Mais Longo)
-
-Como maximizar a experiência de um turista? O objetivo é encontrar o roteiro que começa e termina em uma mesma estação, visitando o maior número possível de estações distintas sem revisitar nenhuma (exceto o retorno à origem).
-
-**Definição Formal:** Seja $G(V,E)$ um grafo não direcionado, encontrar $$
-
-### Problema 2: Cobertura Eficiente (Conjunto Dominante Mínimo)
-
-Onde instalar guichês de venda de passes para garantir máxima conveniência com o mínimo de custo? O objetivo é determinar o menor número de estações para instalar guichês, de forma que qualquer estação do sistema esteja a, no máximo, uma conexão de distância de um guichê.
-
-**Definição Formal:** Seja $G(V,E)$ um grafo não direcionado, encontrar $$
-
 ## Técnicas de Projeto de Algoritmos Abordadas
 
 Para cada desafio, foram implementadas e comparadas três soluções distintas, representando diferentes trade-offs entre tempo de execução e otimalidade do resultado.
